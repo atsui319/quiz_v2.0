@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - セレクト全文確認版</title>
+    <title>クイズコンソール - 究極統合版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
@@ -21,6 +21,14 @@
 
         #display { font-size: 1.1rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; background: #f9f9f9; white-space: pre-wrap; line-height: 1.6;}
         
+        /* 文字種別出し用コントロール */
+        .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 10px; }
+        .btn-type { background: #95a5a6; color: white; font-size: 0.75rem; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-type:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.5; }
+
+        .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
+        .setting-item { display: flex; align-items: center; justify-content: space-between; }
+
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
         button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
@@ -31,16 +39,11 @@
         .btn-finish { background: #2c3e50; color: white; width: 100%; margin-top: 10px; }
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         
-        /* 💡 セレクト出題エリアの強化 */
         .select-area { margin-top: 20px; padding: 15px; border: 2px solid #2ecc71; border-radius: 12px; background: #fafffa; }
-        #candidateList { max-height: 400px; overflow-y: auto; padding-right: 5px; }
-        .candidate-card { 
-            background: white; border: 2px solid #eee; padding: 12px; margin-bottom: 10px; 
-            border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; 
-            line-height: 1.4; display: flex; flex-direction: column; gap: 6px;
-        }
-        .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; }
+        #candidateList { max-height: 300px; overflow-y: auto; }
+        .candidate-card { background: white; border: 2px solid #eee; padding: 12px; margin-bottom: 10px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; line-height: 1.4; }
+        .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; }
+        .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; margin-top: 4px; }
 
         .insert-area { margin-top: 20px; padding: 15px; border: 2px solid #e67e22; border-radius: 12px; background: #fff5e6; }
         .insert-input { padding: 8px; border-radius: 6px; border: 1px solid #e67e22; font-size: 0.9rem; width: 100%; box-sizing: border-box; margin-bottom: 5px; }
@@ -63,18 +66,33 @@
         <button class="btn-genre" onclick="changeGenre('sport', event)">スポーツ</button>
     </div>
 
+    <div class="settings-bar">
+        <div class="setting-item">
+            <label><input type="checkbox" id="typeMode" onchange="resetState()"> <b>文字種別出しモード</b></label>
+            <span>速度: <input type="range" id="speedRange" min="10" max="500" step="10" value="100" onchange="updateSpeedDisplay()"><span id="speedVal">100</span>ms</span>
+        </div>
+    </div>
+
     <div id="qNumber" style="font-size:0.9rem; margin-bottom:5px; color:#3498db; font-weight:bold;">第 - 問</div>
     
     <div class="admin-script-area">
-        <div class="admin-label" style="color:#f39c12">【出題者用】現在出題中の全文</div>
+        <div class="admin-label" style="color:#f39c12">【出題者用】全文</div>
         <div id="adminFullText">---</div>
     </div>
     <div class="admin-ans-area">
-        <div class="admin-label" style="color:#3498db">【出題者用】現在出題中の答え</div>
+        <div class="admin-label" style="color:#3498db">【出題者用】答え</div>
         <div id="adminAnswer">---</div>
     </div>
 
     <div id="display">読み込み中...</div>
+
+    <div class="type-controls" id="typeButtons" style="display:none;">
+        <button id="btn-symbol" class="btn-type" onclick="revealSpecific('symbol')">記号</button>
+        <button id="btn-alpha" class="btn-type" onclick="revealSpecific('alpha')">英数</button>
+        <button id="btn-kanji" class="btn-type" onclick="revealSpecific('kanji')">漢字</button>
+        <button id="btn-katakana" class="btn-type" onclick="revealSpecific('katakana')">カナ</button>
+        <button id="btn-hiragana" class="btn-type" onclick="revealSpecific('hiragana')">かな</button>
+    </div>
 
     <div class="controls">
         <button id="startBtn" class="btn-primary" onclick="startQuiz()">開始 / 再開</button>
@@ -89,9 +107,9 @@
     </div>
 
     <div class="select-area">
-        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題（クリックで即出題）</div>
+        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題（全文確認）</div>
         <div id="candidateList"></div>
-        <button class="btn-genre" style="width:100%; margin-top:10px; font-weight:bold; background:#e8f8f0;" onclick="refreshCandidates()">候補の5件を入れ替える</button>
+        <button class="btn-genre" style="width:100%; margin-top:10px;" onclick="refreshCandidates()">候補を入れ替える</button>
     </div>
 
     <div class="insert-area">
@@ -130,6 +148,7 @@
     let fullText = "";
     let displayedTextArray = [];
     let subWindow = null;
+    let currentSpeed = 100;
 
     async function init() {
         const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
@@ -163,18 +182,14 @@
     function refreshCandidates() {
         const listEl = document.getElementById("candidateList");
         listEl.innerHTML = "";
-        // 未出題の中から5件選ぶ
-        const shuffled = [...quizData].sort(() => 0.5 - Math.random());
-        const picked = shuffled.slice(0, 5);
-
-        picked.forEach(item => {
+        const shuffled = [...quizData].sort(() => 0.5 - Math.random()).slice(0, 5);
+        shuffled.forEach(item => {
             const div = document.createElement("div");
             div.className = "candidate-card";
             div.innerHTML = `<div>${item.q}</div><div class="candidate-ans">答：${item.a}</div>`;
             div.onclick = () => selectCandidate(item);
             listEl.appendChild(div);
         });
-        listEl.scrollTop = 0;
     }
 
     function selectCandidate(item) {
@@ -217,18 +232,30 @@
     function resetState() {
         isRunning = false;
         clearInterval(timer);
+        if (currentIdx === -1) return;
         const item = history[currentIdx];
         fullText = item.q;
         document.getElementById("adminFullText").innerText = fullText;
         document.getElementById("adminAnswer").innerText = item.a;
         document.getElementById("qNumber").innerText = `第 ${currentIdx + 1} 問`;
-        displayedTextArray = [];
-        
-        document.getElementById("startBtn").disabled = false;
-        document.getElementById("stopBtn").disabled = true;
-        document.getElementById("showAnsBtn").disabled = true;
-        document.getElementById("prevBtn").disabled = (currentIdx === 0);
 
+        const isTypeMode = document.getElementById("typeMode").checked;
+        if (isTypeMode) {
+            displayedTextArray = new Array(fullText.length).fill("＿");
+            document.getElementById("typeButtons").style.display = "flex";
+            ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
+            document.getElementById("startBtn").disabled = true;
+            document.getElementById("stopBtn").disabled = true;
+            document.getElementById("showAnsBtn").disabled = false;
+        } else {
+            displayedTextArray = [];
+            document.getElementById("typeButtons").style.display = "none";
+            document.getElementById("startBtn").disabled = false;
+            document.getElementById("stopBtn").disabled = true;
+            document.getElementById("showAnsBtn").disabled = true;
+        }
+
+        document.getElementById("prevBtn").disabled = (currentIdx === 0);
         syncDisplay();
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("ans").style.display = "none";
@@ -238,10 +265,14 @@
     }
 
     function startQuiz() {
-        if (isRunning) return;
+        if (isRunning || document.getElementById("typeMode").checked) return;
         isRunning = true;
         document.getElementById("startBtn").disabled = true;
         document.getElementById("stopBtn").disabled = false;
+        startTimer();
+    }
+
+    function startTimer() {
         let i = displayedTextArray.length;
         timer = setInterval(() => {
             if (i < fullText.length) {
@@ -249,7 +280,7 @@
                 syncDisplay();
                 i++;
             } else { stopQuiz(); }
-        }, 100);
+        }, currentSpeed);
     }
 
     function stopQuiz() {
@@ -258,6 +289,24 @@
         document.getElementById("stopBtn").disabled = true;
         document.getElementById("startBtn").disabled = false;
         document.getElementById("showAnsBtn").disabled = false;
+    }
+
+    function revealSpecific(category) {
+        const patterns = {
+            symbol: /[、。！？（）「」『』\s]/, alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/,
+            kanji: /[一-龠]/, katakana: /[ァ-ヴー]/, hiragana: /[ぁ-ん]/
+        };
+        for (let i = 0; i < fullText.length; i++) {
+            if (patterns[category].test(fullText[i])) displayedTextArray[i] = fullText[i];
+        }
+        syncDisplay();
+        document.getElementById(`btn-${category}`).disabled = true;
+    }
+
+    function updateSpeedDisplay() {
+        currentSpeed = parseInt(document.getElementById("speedRange").value);
+        document.getElementById("speedVal").innerText = currentSpeed;
+        if (isRunning) { clearInterval(timer); startTimer(); }
     }
 
     function syncDisplay() {
@@ -287,7 +336,7 @@
                 #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; }
                 #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; max-height: 85vh; overflow-y: auto; }
                 .r-table { width: 100%; border-collapse: collapse; }
-                .r-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); text-align: left; }
+                .r-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); }
                 .r-ans { color: #f1c40f; font-weight: bold; }
             </style></head>
             <body>
