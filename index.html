@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - 即時差し込み版</title>
+    <title>クイズコンソール - 即時割り込み版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
@@ -38,10 +38,10 @@
         .btn-next { background: #2ecc71; color: white; }
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         
-        /* 差し込みエリア */
-        .insert-area { margin-top: 25px; padding: 15px; border: 2px solid #6c5ce7; border-radius: 12px; background: #f3f0ff; }
+        /* 即時差し出しエリア */
+        .insert-area { margin-top: 25px; padding: 15px; border: 2px solid #e67e22; border-radius: 12px; background: #fff5e6; }
         .insert-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
-        .insert-input { padding: 10px; border-radius: 6px; border: 1px solid #6c5ce7; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
+        .insert-input { padding: 10px; border-radius: 6px; border: 1px solid #e67e22; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
         .status-msg { font-size: 0.75rem; color: #7f8c8d; text-align: center; margin-top: 5px; }
     </style>
 </head>
@@ -99,11 +99,11 @@
     </div>
 
     <div class="insert-area">
-        <div class="admin-label" style="color:#6c5ce7">⚡ 次の問題に差し込む (割り込み)</div>
+        <div class="admin-label" style="color:#d35400">🔥 割り込み出題（今すぐこの問題を出す）</div>
         <div class="insert-grid">
-            <input type="text" id="nextQ" class="insert-input" placeholder="差し込む問題文を入力">
-            <input type="text" id="nextA" class="insert-input" placeholder="答えを入力">
-            <button class="btn-primary" style="background:#6c5ce7; padding:8px;" onclick="insertQuestion()">この問題を「次の問題」としてセットする</button>
+            <input type="text" id="nowQ" class="insert-input" placeholder="今すぐ出す問題文を入力">
+            <input type="text" id="nowA" class="insert-input" placeholder="その答えを入力">
+            <button class="btn-primary" style="background:#e67e22; padding:8px;" onclick="instantPlay()">この問題を今すぐ出題する</button>
         </div>
     </div>
 
@@ -190,21 +190,22 @@
         });
     }
 
-    // 💡 問題を差し込む関数
-    function insertQuestion() {
-        const q = document.getElementById("nextQ").value;
-        const a = document.getElementById("nextA").value;
+    // 💡 今すぐ出題（即時割り込み）関数
+    function instantPlay() {
+        const q = document.getElementById("nowQ").value;
+        const a = document.getElementById("nowA").value;
         if (!q || !a) return alert("問題文と答えを入力してください");
 
-        // 次のインデックスに割り込ませる
-        quizData.splice(currentIdx + 1, 0, { q, a });
+        // リストの現在位置に無理やりねじ込み、現在の問題を上書きする形にする
+        quizData.splice(currentIdx, 0, { q, a });
         
-        document.getElementById("nextQ").value = "";
-        document.getElementById("nextA").value = "";
-        document.getElementById("status").innerText = "次の問題に差し込みました！";
-        
-        // 「次の問題」ボタンを有効にする（現在の問題を解き終わっていなくても進めるように）
-        els.nextBtn.disabled = false;
+        // 入力欄をクリア
+        document.getElementById("nowQ").value = "";
+        document.getElementById("nowA").value = "";
+        document.getElementById("status").innerText = "割り込み出題を開始しました！";
+
+        // 即座にリセットして表示を更新
+        resetState();
     }
 
     function changeGenre(genre, event) {
