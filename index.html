@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - 履歴保持版</title>
+    <title>クイズコンソール - ハイブリッド表示版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
@@ -104,7 +104,7 @@
     </div>
 
     <div class="select-area">
-        <div class="admin-label" style="color:#2ecc71">🎯 現在のジャンルから候補を選択</div>
+        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題</div>
         <div id="candidateList"></div>
         <button class="btn-genre" style="width:100%; margin-top:10px;" onclick="refreshCandidates()">候補を入れ替える</button>
     </div>
@@ -134,7 +134,7 @@
     };
 
     let allMasterData = { anime: [], social: [], life: [], sport: [] };
-    let currentQuizPool = []; // 現在選択されているジャンルの問題プール
+    let currentQuizPool = [];
     let history = []; 
     let currentIdx = -1;
     let isRunning = false;
@@ -161,15 +161,12 @@
         });
     }
 
-    // 💡 ジャンル切り替え時に履歴をリセットしないように修正
     function changeGenre(genre, event) {
         if (event) {
             document.querySelectorAll('.btn-genre').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         }
         currentQuizPool = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
-        
-        // 最初の起動時のみ、自動的に1問目を開始
         if (history.length === 0) {
             nextQuestion();
         } else {
@@ -198,13 +195,8 @@
     }
 
     function selectCandidate(item) {
-        // 現在の問題が進行中（かつ最後）であれば上書き、そうでなければ追加
-        if (currentIdx === history.length - 1 && displayedTextArray.length === 0) {
-            history[currentIdx] = item;
-        } else {
-            history.push(item);
-            currentIdx = history.length - 1;
-        }
+        history.push(item);
+        currentIdx = history.length - 1;
         resetState();
         refreshCandidates();
     }
@@ -239,7 +231,9 @@
         document.getElementById("qNumber").innerText = `第 ${currentIdx + 1} 問`;
 
         const isTypeMode = document.getElementById("typeMode").checked;
+        
         if (isTypeMode) {
+            // 文字種別出しモード：＿＿＿で初期化
             displayedTextArray = new Array(fullText.length).fill("＿");
             document.getElementById("typeButtons").style.display = "flex";
             ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
@@ -247,6 +241,7 @@
             document.getElementById("stopBtn").disabled = true;
             document.getElementById("showAnsBtn").disabled = false;
         } else {
+            // 通常読み上げモード：空白で初期化
             displayedTextArray = [];
             document.getElementById("typeButtons").style.display = "none";
             document.getElementById("startBtn").disabled = false;
