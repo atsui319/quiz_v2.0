@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - スポーツ追加版</title>
+    <title>クイズコンソール - 文字種別モード復活版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
@@ -21,6 +21,10 @@
         .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
         .setting-item { display: flex; align-items: center; justify-content: space-between; }
         
+        .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 10px; }
+        .btn-type { background: #95a5a6; color: white; font-size: 0.75rem; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-type:disabled { background: #ccc; cursor: not-allowed; }
+
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
         button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
@@ -50,8 +54,8 @@
 
     <div class="settings-bar">
         <div class="setting-item">
-            <span>読み上げ速度: <input type="range" id="speedRange" min="10" max="500" step="10" value="100" onchange="updateSpeedDisplay()"><span id="speedVal">100</span>ms</span>
-            <button class="btn-reset" style="padding: 5px 10px; font-size: 0.7rem;" onclick="resetCurrentQuestion()">この問題を最初から</button>
+            <label><input type="checkbox" id="typeMode" onchange="toggleTypeMode()"> <b>文字種別出しモード</b></label>
+            <span>速度: <input type="range" id="speedRange" min="10" max="500" step="10" value="100" onchange="updateSpeedDisplay()"><span id="speedVal">100</span>ms</span>
         </div>
     </div>
 
@@ -62,6 +66,14 @@
 
     <div id="qNumber" style="font-size:0.9rem; margin-bottom:5px; color:#3498db; font-weight:bold;">第 - 問</div>
     <div id="display">読み込み中...</div>
+
+    <div class="type-controls" id="typeButtons" style="display:none;">
+        <button id="btn-symbol" class="btn-type" onclick="revealSpecific('symbol')">記号</button>
+        <button id="btn-alpha" class="btn-type" onclick="revealSpecific('alpha')">英数</button>
+        <button id="btn-kanji" class="btn-type" onclick="revealSpecific('kanji')">漢字</button>
+        <button id="btn-katakana" class="btn-type" onclick="revealSpecific('katakana')">カナ</button>
+        <button id="btn-hiragana" class="btn-type" onclick="revealSpecific('hiragana')">かな</button>
+    </div>
 
     <div class="controls">
         <button id="startBtn" class="btn-primary" onclick="startQuiz()">開始 / 再開 (Space)</button>
@@ -103,6 +115,8 @@
         stopBtn: document.getElementById("stopBtn"),
         nextBtn: document.getElementById("nextBtn"),
         showAnsBtn: document.getElementById("showAnsBtn"),
+        typeMode: document.getElementById("typeMode"),
+        typeButtons: document.getElementById("typeButtons"),
         speedRange: document.getElementById("speedRange"),
         speedVal: document.getElementById("speedVal")
     };
@@ -133,14 +147,12 @@
 
     async function init() {
         try {
-            document.getElementById("status").innerText = "データをロード中...";
+            document.getElementById("status").innerText = "同期中...";
             const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
-            
             allMasterData.anime = parseCSV(responses[0]);
             allMasterData.social = parseCSV(responses[1]);
             allMasterData.life = parseCSV(responses[2]);
             allMasterData.sport = parseCSV(responses[3]);
-
             changeGenre('all');
         } catch (e) {
             els.display.innerText = "データ読み込みエラー。";
@@ -160,11 +172,7 @@
             document.querySelectorAll('.btn-genre').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         }
-        if (genre === 'all') {
-            quizData = [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport];
-        } else {
-            quizData = [...allMasterData[genre]];
-        }
+        quizData = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
         resetAll();
     }
 
@@ -175,29 +183,33 @@
         }
         currentIdx = 0;
         resetState();
-        document.getElementById("status").innerText = `読み込み完了: 全 ${quizData.length} 問`;
     }
-
-    function resetCurrentQuestion() { resetState(); }
 
     function resetState() {
         isRunning = false;
         clearInterval(timer);
         if (quizData.length === 0) return;
         fullText = quizData[currentIdx].q;
-        displayedTextArray = [];
+        
+        if (els.typeMode.checked) {
+            displayedTextArray = new Array(fullText.length).fill("＿");
+            els.typeButtons.style.display = "flex";
+            ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
+        } else {
+            displayedTextArray = [];
+            els.typeButtons.style.display = "none";
+        }
         
         els.qNumber.innerText = `第 ${currentIdx + 1} 問`;
         els.adminAnswer.innerText = quizData[currentIdx].a;
         syncDisplay();
-        
         if (subWindow && !subWindow.closed) subWindow.document.getElementById("ans").style.display = "none";
         
-        els.display.innerText = "「開始」で読み上げます";
         els.startBtn.disabled = false;
         els.stopBtn.disabled = true;
         els.nextBtn.disabled = true;
         els.showAnsBtn.disabled = true;
+        if (!els.typeMode.checked) els.display.innerText = "「開始」で読み上げます";
     }
 
     function startQuiz() {
@@ -211,10 +223,11 @@
     }
 
     function startTimer() {
-        let i = displayedTextArray.length;
+        let i = els.typeMode.checked ? (displayedTextArray.indexOf("＿") === -1 ? fullText.length : displayedTextArray.indexOf("＿")) : displayedTextArray.length;
         timer = setInterval(() => {
             if (i < fullText.length) {
-                displayedTextArray.push(fullText[i]);
+                if (els.typeMode.checked) { displayedTextArray[i] = fullText[i]; } 
+                else { displayedTextArray.push(fullText[i]); }
                 syncDisplay();
                 i++;
             } else { 
@@ -254,11 +267,28 @@
         resetState();
     }
 
+    function revealSpecific(category) {
+        const patterns = {
+            symbol: /[、。！？（）「」『』\s]/,
+            alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/,
+            kanji: /[一-龠]/,
+            katakana: /[ァ-ヴー]/,
+            hiragana: /[ぁ-ん]/
+        };
+        for (let i = 0; i < fullText.length; i++) {
+            if (patterns[category].test(fullText[i])) displayedTextArray[i] = fullText[i];
+        }
+        syncDisplay();
+        document.getElementById(`btn-${category}`).disabled = true;
+    }
+
     function updateSpeedDisplay() {
         currentSpeed = parseInt(els.speedRange.value);
         els.speedVal.innerText = currentSpeed;
         if (isRunning) { clearInterval(timer); startTimer(); }
     }
+
+    function toggleTypeMode() { resetState(); }
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
