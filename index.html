@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - セレクト出題版</title>
+    <title>クイズコンソール - セレクト全文確認版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
@@ -31,13 +31,17 @@
         .btn-finish { background: #2c3e50; color: white; width: 100%; margin-top: 10px; }
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         
-        /* セレクト出題エリア */
+        /* 💡 セレクト出題エリアの強化 */
         .select-area { margin-top: 20px; padding: 15px; border: 2px solid #2ecc71; border-radius: 12px; background: #fafffa; }
-        .candidate-card { background: white; border: 1px solid #ddd; padding: 8px; margin-bottom: 5px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
-        .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; }
-        .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.75rem; }
+        #candidateList { max-height: 400px; overflow-y: auto; padding-right: 5px; }
+        .candidate-card { 
+            background: white; border: 2px solid #eee; padding: 12px; margin-bottom: 10px; 
+            border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; 
+            line-height: 1.4; display: flex; flex-direction: column; gap: 6px;
+        }
+        .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; }
 
-        /* 割り込みエリア */
         .insert-area { margin-top: 20px; padding: 15px; border: 2px solid #e67e22; border-radius: 12px; background: #fff5e6; }
         .insert-input { padding: 8px; border-radius: 6px; border: 1px solid #e67e22; font-size: 0.9rem; width: 100%; box-sizing: border-box; margin-bottom: 5px; }
 
@@ -62,11 +66,11 @@
     <div id="qNumber" style="font-size:0.9rem; margin-bottom:5px; color:#3498db; font-weight:bold;">第 - 問</div>
     
     <div class="admin-script-area">
-        <div class="admin-label" style="color:#f39c12">【出題者用】問題全文</div>
+        <div class="admin-label" style="color:#f39c12">【出題者用】現在出題中の全文</div>
         <div id="adminFullText">---</div>
     </div>
     <div class="admin-ans-area">
-        <div class="admin-label" style="color:#3498db">【出題者用】答え</div>
+        <div class="admin-label" style="color:#3498db">【出題者用】現在出題中の答え</div>
         <div id="adminAnswer">---</div>
     </div>
 
@@ -85,9 +89,9 @@
     </div>
 
     <div class="select-area">
-        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題 (5件)</div>
+        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題（クリックで即出題）</div>
         <div id="candidateList"></div>
-        <button class="btn-genre" style="width:100%; margin-top:5px;" onclick="refreshCandidates()">候補を更新</button>
+        <button class="btn-genre" style="width:100%; margin-top:10px; font-weight:bold; background:#e8f8f0;" onclick="refreshCandidates()">候補の5件を入れ替える</button>
     </div>
 
     <div class="insert-area">
@@ -156,20 +160,21 @@
         nextQuestion();
     }
 
-    // 💡 候補5件をランダムに取得して表示
     function refreshCandidates() {
         const listEl = document.getElementById("candidateList");
         listEl.innerHTML = "";
+        // 未出題の中から5件選ぶ
         const shuffled = [...quizData].sort(() => 0.5 - Math.random());
         const picked = shuffled.slice(0, 5);
 
         picked.forEach(item => {
             const div = document.createElement("div");
             div.className = "candidate-card";
-            div.innerHTML = `${item.q.substring(0, 30)}...<br><span class="candidate-ans">答：${item.a}</span>`;
+            div.innerHTML = `<div>${item.q}</div><div class="candidate-ans">答：${item.a}</div>`;
             div.onclick = () => selectCandidate(item);
             listEl.appendChild(div);
         });
+        listEl.scrollTop = 0;
     }
 
     function selectCandidate(item) {
@@ -278,11 +283,11 @@
             <html><head><style>
                 body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
                 #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;}
-                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; }
+                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap;}
                 #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; }
-                #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; }
+                #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; max-height: 85vh; overflow-y: auto; }
                 .r-table { width: 100%; border-collapse: collapse; }
-                .r-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+                .r-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); text-align: left; }
                 .r-ans { color: #f1c40f; font-weight: bold; }
             </style></head>
             <body>
