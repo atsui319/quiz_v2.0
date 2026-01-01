@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - リザルト機能版</title>
+    <title>クイズコンソール - 全画面リザルト同期版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
@@ -35,7 +35,6 @@
         .btn-finish { background: #2c3e50; color: white; width: 100%; margin-top: 20px; }
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         
-        /* リザルト画面 */
         #resultArea { display: none; margin-top: 20px; padding: 20px; background: #fff; border-radius: 12px; border: 2px solid #2c3e50; width: 100%; box-sizing: border-box; }
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .result-table th, .result-table td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
@@ -124,7 +123,7 @@
 
     let allMasterData = { anime: [], social: [], life: [], sport: [] };
     let quizData = [];
-    let history = []; // 実際に出題した履歴
+    let history = []; 
     let currentIdx = 0;
     let isRunning = false;
     let timer = null;
@@ -155,15 +154,32 @@
         subWindow.document.write(`
             <html><head><title>視聴者用モニター</title>
             <style>
-                body { background: radial-gradient(circle, #2c3e50 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
-                #num { position: absolute; top: 50px; left: 50px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;}
-                #text-container { width: 85%; min-height: 300px; display: flex; align-items: center; }
-                #text { font-size: 4rem; line-height: 1.4; font-weight: 700; text-shadow: 4px 4px 0px #000; letter-spacing: 0.05em; }
-                #ans { margin-top: 40px; font-size: 6rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 20px 60px; border-radius: 20px; box-shadow: 0 0 30px rgba(241, 196, 15, 0.4); }
-                #finish { font-size: 10rem; color: #e74c3c; font-weight: 900; display: none; animation: bounce 1s infinite; }
-                @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+                body { background: radial-gradient(circle, #2c3e50 0%, #000000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
+                #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;}
+                #quiz-view { width: 85%; display: flex; flex-direction: column; align-items: center; }
+                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; text-shadow: 4px 4px 0px #000; letter-spacing: 0.05em; margin-bottom: 30px; }
+                #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; box-shadow: 0 0 30px rgba(241, 196, 15, 0.4); }
+                
+                #result-view { display: none; width: 90%; height: 80vh; overflow-y: auto; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; box-sizing: border-box; }
+                h1 { color: #f1c40f; text-align: center; font-size: 3rem; margin-top: 0; }
+                .r-table { width: 100%; border-collapse: collapse; font-size: 1.5rem; }
+                .r-table th { background: rgba(52, 152, 219, 0.5); padding: 15px; text-align: left; position: sticky; top: 0; }
+                .r-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+                .r-table tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+                .r-num { color: #3498db; font-weight: bold; width: 50px; }
+                .r-ans { color: #f1c40f; font-weight: bold; }
             </style></head>
-            <body><div id="num"></div><div id="text-container"><div id="text"></div></div><div id="ans"></div><div id="finish">FINISH!</div></body></html>
+            <body>
+                <div id="num"></div>
+                <div id="quiz-view">
+                    <div id="text"></div>
+                    <div id="ans"></div>
+                </div>
+                <div id="result-view">
+                    <h1>📋 本日のおさらい</h1>
+                    <table class="r-table"><tbody id="r-body"></tbody></table>
+                </div>
+            </body></html>
         `);
         syncDisplay();
     }
@@ -234,7 +250,6 @@
         els.adminFullText.innerText = fullText;
         els.adminAnswer.innerText = quizData[currentIdx].a;
 
-        // 履歴に追加（重複は避ける）
         if (!history.find(h => h.q === fullText)) {
             history.push({ q: fullText, a: quizData[currentIdx].a });
         }
@@ -247,8 +262,8 @@
         syncDisplay();
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("ans").style.display = "none";
-            subWindow.document.getElementById("finish").style.display = "none";
-            subWindow.document.getElementById("text").style.display = "block";
+            subWindow.document.getElementById("quiz-view").style.display = "flex";
+            subWindow.document.getElementById("result-view").style.display = "none";
         }
     }
 
@@ -308,21 +323,24 @@
     }
 
     function finishQuiz() {
-        // 視聴者画面を終了表示に
-        if (subWindow && !subWindow.closed) {
-            subWindow.document.getElementById("text").style.display = "none";
-            subWindow.document.getElementById("ans").style.display = "none";
-            subWindow.document.getElementById("num").innerText = "";
-            subWindow.document.getElementById("finish").style.display = "block";
-        }
-        
-        // おさらい画面の構築
+        // 管理画面リザルト構築
         const tbody = document.querySelector("#resultTable tbody");
         tbody.innerHTML = "";
+        
+        // 視聴者画面リザルト構築
+        let subHtml = "";
+
         history.forEach((item, i) => {
-            const row = `<tr><td>${i+1}</td><td>${item.q}</td><td>${item.a}</td></tr>`;
-            tbody.innerHTML += row;
+            tbody.innerHTML += `<tr><td>${i+1}</td><td>${item.q}</td><td>${item.a}</td></tr>`;
+            subHtml += `<tr><td class="r-num">${i+1}</td><td>${item.q}</td><td class="r-ans">${item.a}</td></tr>`;
         });
+
+        if (subWindow && !subWindow.closed) {
+            subWindow.document.getElementById("quiz-view").style.display = "none";
+            subWindow.document.getElementById("num").innerText = "";
+            subWindow.document.getElementById("r-body").innerHTML = subHtml;
+            subWindow.document.getElementById("result-view").style.display = "block";
+        }
 
         els.main.style.display = "none";
         els.result.style.display = "block";
@@ -331,6 +349,10 @@
     function backToQuiz() {
         els.result.style.display = "none";
         els.main.style.display = "block";
+        if (subWindow && !subWindow.closed) {
+            subWindow.document.getElementById("quiz-view").style.display = "flex";
+            subWindow.document.getElementById("result-view").style.display = "none";
+        }
     }
 
     function updateSpeedDisplay() {
