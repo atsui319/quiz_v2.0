@@ -3,53 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - 差し込み機能復活版</title>
+    <title>クイズコンソール - 重複除外版</title>
     <style>
+        /* スタイルは前回と同様のため維持 */
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
-        
         .genre-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
         .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.8rem; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
         .btn-genre.active { background: #3498db; color: white; border-color: #2980b9; }
-
         .admin-script-area { background: #fff9db; border: 2px solid #f1c40f; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
         .admin-ans-area { background: #e8f4fd; border: 2px solid #3498db; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
         .admin-label { font-size: 0.7rem; font-weight: bold; color: #7f8c8d; margin-bottom: 3px; }
-        
         #adminFullText { font-size: 1rem; font-weight: bold; color: #444; line-height: 1.5; }
         #adminAnswer { font-size: 1.4rem; font-weight: bold; color: #2c3e50; }
-
         #display { font-size: 1.1rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; background: #f9f9f9; white-space: pre-wrap; line-height: 1.6;}
-        
         .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 10px; }
         .btn-type { background: #95a5a6; color: white; font-size: 0.75rem; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; }
         .btn-type:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.5; }
-
         .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
         .setting-item { display: flex; align-items: center; justify-content: space-between; }
-
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
         button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
-        
         .btn-primary { background: #3498db; color: white; }
         .btn-stop { background: #e74c3c; color: white; }
         .btn-next { background: #2ecc71; color: white; }
         .btn-finish { background: #2c3e50; color: white; width: 100%; margin-top: 10px; }
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         .btn-danger { background: #95a5a6; color: white; font-size: 0.8rem; margin-top: 15px; width: 100%; }
-        
-        /* 差し込みエリアのスタイル */
         .manual-input-area { margin-top: 20px; padding: 15px; border: 2px solid #9b59b6; border-radius: 12px; background: #fdfaff; }
         .manual-input-area textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; resize: vertical; }
         .manual-input-area input { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; margin-top: 5px; }
-
-        .select-area { margin-top: 10px; padding: 15px; border: 2px solid #2ecc71; border-radius: 12px; background: #fafffa; }
+        .select-area { margin-top: 10px; padding: 15px; border: 2px solid #e67e22; border-radius: 12px; background: #fffaf5; }
         #candidateList { max-height: 200px; overflow-y: auto; }
         .candidate-card { background: white; border: 2px solid #eee; padding: 12px; margin-bottom: 10px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; line-height: 1.4; }
-        .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; }
-        .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; margin-top: 4px; }
-
+        .candidate-card:hover { border-color: #e67e22; background: #fffcf9; }
+        .candidate-ans { color: #d35400; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; margin-top: 4px; }
         #resultArea { display: none; padding: 20px; background: #fff; border-radius: 12px; border: 2px solid #2c3e50; width: 100%; max-width: 800px; }
         .result-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 20px;}
         .result-table th, .result-table td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
@@ -73,6 +62,7 @@
             <label><input type="checkbox" id="typeMode" onchange="resetState()"> <b>文字種別出しモード</b></label>
             <span>速度: <input type="range" id="speedRange" min="10" max="500" step="10" value="100" onchange="updateSpeedDisplay()"><span id="speedVal">100</span>ms</span>
         </div>
+        <div id="remainingCount" style="font-size: 0.75rem; color: #7f8c8d; text-align: right;">未出題の問題: -- 問</div>
     </div>
 
     <div id="qNumber" style="font-size:0.9rem; margin-bottom:5px; color:#3498db; font-weight:bold;">第 - 問</div>
@@ -105,20 +95,22 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <button id="prevBtn" class="btn-prev" onclick="prevQuestion()" disabled>前へ</button>
-        <button id="nextBtn" class="btn-next" onclick="nextQuestion()">次の問題をランダム出題</button>
-    </div>
-
-    <div class="manual-input-area">
-        <div class="admin-label" style="color:#9b59b6">✏️ 手動で問題を差し込む</div>
-        <textarea id="manualQ" placeholder="問題文を入力してください" rows="2"></textarea>
-        <input type="text" id="manualA" placeholder="答えを入力してください">
-        <button class="btn-sub" style="margin-top:10px; margin-bottom:0;" onclick="insertManualQuestion()">この問題を差し込んで出題</button>
+        <button id="nextBtn" class="btn-next" onclick="prepareNextBlank()">次の問題をセット（空白）</button>
     </div>
 
     <div class="select-area">
-        <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題</div>
+        <div class="admin-label" style="color:#e67e22; display: flex; justify-content: space-between;">
+            <span>🎯 この問題にセットする (重複除外中)</span>
+        </div>
         <div id="candidateList"></div>
         <button class="btn-genre" style="width:100%; margin-top:10px;" onclick="refreshCandidates()">候補を入れ替える</button>
+    </div>
+
+    <div class="manual-input-area">
+        <div class="admin-label" style="color:#9b59b6">✏️ 手動で今の問題を上書き</div>
+        <textarea id="manualQ" placeholder="問題文を入力してください" rows="2"></textarea>
+        <input type="text" id="manualA" placeholder="答えを入力してください">
+        <button class="btn-sub" style="margin-top:10px; margin-bottom:0;" onclick="overwriteManual()">この内容で確定</button>
     </div>
 
     <button class="btn-finish" onclick="finishQuiz()">🏁 終了しておさらい表示</button>
@@ -146,8 +138,8 @@
     };
 
     let allMasterData = { anime: [], social: [], life: [], sport: [] };
-    let currentQuizPool = [];
-    let history = []; 
+    let currentQuizPool = []; // 現在のジャンルの全データ
+    let history = []; // 第1問、第2問...の実績データ
     let currentIdx = -1;
     let isRunning = false;
     let timer = null;
@@ -157,22 +149,17 @@
     let currentSpeed = 100;
 
     async function init() {
-        try {
-            const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
-            allMasterData.anime = parseCSV(responses[0]);
-            allMasterData.social = parseCSV(responses[1]);
-            allMasterData.life = parseCSV(responses[2]);
-            allMasterData.sport = parseCSV(responses[3]);
-            changeGenre('all');
-        } catch (e) { document.getElementById("display").innerText = "データの読み込みに失敗しました。"; }
+        const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
+        allMasterData.anime = parseCSV(responses[0]);
+        allMasterData.social = parseCSV(responses[1]);
+        allMasterData.life = parseCSV(responses[2]);
+        allMasterData.sport = parseCSV(responses[3]);
+        changeGenre('all');
     }
 
     function parseCSV(text) {
         const rows = text.split(/\r?\n/).filter(r => r.trim() !== "");
-        return rows.slice(1).map(row => {
-            const parts = row.split(",");
-            return { q: parts[0] || "", a: parts[1] || "" };
-        });
+        return rows.slice(1).map(row => ({ q: row.split(",")[0] || "", a: row.split(",")[1] || "" }));
     }
 
     function changeGenre(genre, event) {
@@ -181,18 +168,40 @@
             event.target.classList.add('active');
         }
         currentQuizPool = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
-        if (history.length === 0) nextQuestion(); else refreshCandidates();
+        if (history.length === 0) prepareNextBlank(); else refreshCandidates();
     }
 
-    function resetAllQuiz() {
-        history = []; currentIdx = -1;
-        refreshCandidates(); nextQuestion();
+    // 💡 履歴にある問題を除外したプールを作成
+    function getAvailablePool() {
+        const historyQs = history.map(h => h.q);
+        return currentQuizPool.filter(item => !historyQs.includes(item.q));
+    }
+
+    function prepareNextBlank() {
+        if (currentIdx < history.length - 1) {
+            currentIdx++;
+            resetState();
+        } else {
+            history.push({ q: "（候補から問題を選択してください）", a: "---", isPlaceholder: true });
+            currentIdx = history.length - 1;
+            resetState();
+        }
+        refreshCandidates();
     }
 
     function refreshCandidates() {
         const listEl = document.getElementById("candidateList");
         listEl.innerHTML = "";
-        const shuffled = [...currentQuizPool].sort(() => 0.5 - Math.random()).slice(0, 5);
+        
+        const available = getAvailablePool();
+        document.getElementById("remainingCount").innerText = `未出題の問題: ${available.length} 問`;
+
+        if (available.length === 0) {
+            listEl.innerHTML = "<div style='padding:10px; color:red; font-size:0.8rem;'>未出題の問題がありません。リセットするかジャンルを変えてください。</div>";
+            return;
+        }
+
+        const shuffled = [...available].sort(() => 0.5 - Math.random()).slice(0, 5);
         shuffled.forEach(item => {
             const div = document.createElement("div");
             div.className = "candidate-card";
@@ -203,48 +212,29 @@
     }
 
     function selectCandidate(item) {
-        history.push(item);
-        currentIdx = history.length - 1;
+        history[currentIdx] = { ...item, isPlaceholder: false };
         resetState();
+        refreshCandidates(); // 選んだ瞬間に候補を更新（リストから消える）
     }
 
-    // 💡 差し込み機能のロジック
-    function insertManualQuestion() {
+    function overwriteManual() {
         const q = document.getElementById("manualQ").value.trim();
         const a = document.getElementById("manualA").value.trim();
-        if (!q || !a) { alert("問題と答えの両方を入力してください"); return; }
-        
-        const item = { q, a };
-        history.push(item);
-        currentIdx = history.length - 1;
-        
-        // 入力欄をクリア
+        if (!q || !a) return;
+        history[currentIdx] = { q, a, isPlaceholder: false };
         document.getElementById("manualQ").value = "";
         document.getElementById("manualA").value = "";
-        
-        resetState();
-    }
-
-    function nextQuestion() {
-        if (currentIdx < history.length - 1) {
-            currentIdx++;
-        } else {
-            const randomItem = currentQuizPool[Math.floor(Math.random() * currentQuizPool.length)];
-            history.push(randomItem);
-            currentIdx = history.length - 1;
-        }
         resetState();
         refreshCandidates();
     }
 
     function prevQuestion() {
-        if (currentIdx > 0) { currentIdx--; resetState(); }
+        if (currentIdx > 0) { currentIdx--; resetState(); refreshCandidates(); }
     }
 
     function resetState() {
         isRunning = false;
         clearInterval(timer);
-        if (currentIdx === -1) return;
         const item = history[currentIdx];
         fullText = item.q;
         revealedIndexes = [];
@@ -254,65 +244,19 @@
         document.getElementById("qNumber").innerText = `第 ${currentIdx + 1} 問`;
 
         const isTypeMode = document.getElementById("typeMode").checked;
-        if (isTypeMode) {
-            document.getElementById("typeButtons").style.display = "flex";
-            ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
-            document.getElementById("startBtn").disabled = true;
-            document.getElementById("stopBtn").disabled = true;
-        } else {
-            document.getElementById("typeButtons").style.display = "none";
-            document.getElementById("startBtn").disabled = false;
-            document.getElementById("stopBtn").disabled = true;
-        }
+        document.getElementById("typeButtons").style.display = isTypeMode ? "flex" : "none";
+        if (isTypeMode) ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
 
-        document.getElementById("showAnsBtn").disabled = isTypeMode ? false : true;
+        document.getElementById("startBtn").disabled = isTypeMode || item.isPlaceholder;
+        document.getElementById("showAnsBtn").disabled = item.isPlaceholder;
         document.getElementById("prevBtn").disabled = (currentIdx === 0);
+
         syncDisplay();
-        
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("ans").style.display = "none";
             subWindow.document.getElementById("quiz-view").style.display = "flex";
             subWindow.document.getElementById("result-view").style.display = "none";
         }
-    }
-
-    function startQuiz() {
-        if (isRunning || document.getElementById("typeMode").checked) return;
-        isRunning = true;
-        document.getElementById("startBtn").disabled = true;
-        document.getElementById("stopBtn").disabled = false;
-        startTimer();
-    }
-
-    function startTimer() {
-        timer = setInterval(() => {
-            if (revealedIndexes.length < fullText.length) {
-                revealedIndexes.push(revealedIndexes.length);
-                syncDisplay();
-            } else { stopQuiz(); }
-        }, currentSpeed);
-    }
-
-    function stopQuiz() {
-        isRunning = false;
-        clearInterval(timer);
-        document.getElementById("stopBtn").disabled = true;
-        document.getElementById("startBtn").disabled = false;
-        document.getElementById("showAnsBtn").disabled = false;
-    }
-
-    function revealSpecific(category) {
-        const patterns = {
-            symbol: /[、。！？（）「」『』\s]/, alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/,
-            kanji: /[一-龠]/, katakana: /[ァ-ヴー]/, hiragana: /[ぁ-ん]/
-        };
-        for (let i = 0; i < fullText.length; i++) {
-            if (patterns[category].test(fullText[i]) && !revealedIndexes.includes(i)) {
-                revealedIndexes.push(i);
-            }
-        }
-        syncDisplay();
-        document.getElementById(`btn-${category}`).disabled = true;
     }
 
     function syncDisplay() {
@@ -322,7 +266,6 @@
             if (isRevealed) return `<span>${char}</span>`;
             else return isTypeMode ? `<span style="color:#ccc;">＿</span>` : `<span style="opacity:0;">${char}</span>`;
         }).join("");
-
         document.getElementById("display").innerHTML = htmlContent;
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("text").innerHTML = htmlContent;
@@ -330,68 +273,30 @@
         }
     }
 
-    function updateSpeedDisplay() {
-        currentSpeed = parseInt(document.getElementById("speedRange").value);
-        document.getElementById("speedVal").innerText = currentSpeed;
-        if (isRunning) { clearInterval(timer); startTimer(); }
-    }
-
-    function toggleSubAnswer() {
-        if (subWindow && !subWindow.closed) {
-            const ansEl = subWindow.document.getElementById("ans");
-            ansEl.innerText = history[currentIdx].a;
-            ansEl.style.display = "block";
-        }
-    }
-
+    // 演出・管理ロジック（以下は前回と共通）
+    function startQuiz() { if (isRunning || document.getElementById("typeMode").checked) return; isRunning = true; document.getElementById("startBtn").disabled = true; document.getElementById("stopBtn").disabled = false; startTimer(); }
+    function startTimer() { timer = setInterval(() => { if (revealedIndexes.length < fullText.length) { revealedIndexes.push(revealedIndexes.length); syncDisplay(); } else { stopQuiz(); } }, currentSpeed); }
+    function stopQuiz() { isRunning = false; clearInterval(timer); document.getElementById("stopBtn").disabled = true; document.getElementById("startBtn").disabled = false; document.getElementById("showAnsBtn").disabled = false; }
+    function revealSpecific(category) { const patterns = { symbol: /[、。！？（）「」『』\s]/, alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/, kanji: /[一-龠]/, katakana: /[ァ-ヴー]/, hiragana: /[ぁ-ん]/ }; for (let i = 0; i < fullText.length; i++) { if (patterns[category].test(fullText[i]) && !revealedIndexes.includes(i)) revealedIndexes.push(i); } syncDisplay(); document.getElementById(`btn-${category}`).disabled = true; }
+    function updateSpeedDisplay() { currentSpeed = parseInt(document.getElementById("speedRange").value); document.getElementById("speedVal").innerText = currentSpeed; if (isRunning) { clearInterval(timer); startTimer(); } }
+    function toggleSubAnswer() { if (subWindow && !subWindow.closed) { const ansEl = subWindow.document.getElementById("ans"); ansEl.innerText = history[currentIdx].a; ansEl.style.display = "block"; } }
     function openSubWindow() {
         subWindow = window.open("", "QuizDisplay", "width=1280,height=720");
-        subWindow.document.write(`
-            <html><head><style>
-                body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden;}
-                #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;}
-                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap; word-break: break-all;}
-                #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; }
-                #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; max-height: 85vh; overflow-y: auto; }
-                .r-table { width: 100%; border-collapse: collapse; }
-                .r-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); }
-                .r-ans { color: #f1c40f; font-weight: bold; }
-            </style></head>
-            <body>
-                <div id="num"></div>
-                <div id="quiz-view" style="display:flex; flex-direction:column; align-items:center;">
-                    <div id="text"></div><div id="ans"></div>
-                </div>
-                <div id="result-view"><h1>📋 本日のおさらい</h1><table class="r-table"><tbody id="r-body"></tbody></table></div>
-            </body></html>
-        `);
+        subWindow.document.write(`<html><head><style>body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden;} #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;} #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap; word-break: break-all;} #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; } #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; max-height: 85vh; overflow-y: auto; } .r-table { width: 100%; border-collapse: collapse; } .r-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); } .r-ans { color: #f1c40f; font-weight: bold; }</style></head><body><div id="num"></div><div id="quiz-view" style="display:flex; flex-direction:column; align-items:center;"><div id="text"></div><div id="ans"></div></div><div id="result-view"><h1>📋 本日のおさらい</h1><table class="r-table"><tbody id="r-body"></tbody></table></div></body></html>`);
     }
-
     function finishQuiz() {
         const tbody = document.querySelector("#resultTable tbody");
-        tbody.innerHTML = "";
-        let subHtml = "";
-        history.forEach((item, i) => {
+        tbody.innerHTML = ""; let subHtml = "";
+        history.filter(h => !h.isPlaceholder).forEach((item, i) => {
             tbody.innerHTML += `<tr><td>${i+1}</td><td>${item.q}</td><td>${item.a}</td></tr>`;
             subHtml += `<tr><td>${i+1}</td><td>${item.q}</td><td class="r-ans">${item.a}</td></tr>`;
         });
-        if (subWindow && !subWindow.closed) {
-            subWindow.document.getElementById("quiz-view").style.display = "none";
-            subWindow.document.getElementById("num").innerText = "";
-            subWindow.document.getElementById("r-body").innerHTML = subHtml;
-            subWindow.document.getElementById("result-view").style.display = "block";
-        }
-        document.getElementById("mainContainer").style.display = "none";
-        document.getElementById("resultArea").style.display = "block";
+        if (subWindow && !subWindow.closed) { subWindow.document.getElementById("quiz-view").style.display = "none"; subWindow.document.getElementById("num").innerText = ""; subWindow.document.getElementById("r-body").innerHTML = subHtml; subWindow.document.getElementById("result-view").style.display = "block"; }
+        document.getElementById("mainContainer").style.display = "none"; document.getElementById("resultArea").style.display = "block";
     }
-
-    function backToQuiz() {
-        document.getElementById("resultArea").style.display = "none";
-        document.getElementById("mainContainer").style.display = "block";
-        resetState();
-    }
-
-    function resetAndBack() { resetAllQuiz(); backToQuiz(); }
+    function backToQuiz() { document.getElementById("resultArea").style.display = "none"; document.getElementById("mainContainer").style.display = "block"; resetState(); }
+    function resetAndBack() { history = []; currentIdx = -1; prepareNextBlank(); backToQuiz(); }
+    function resetAllQuiz() { history = []; currentIdx = -1; prepareNextBlank(); }
 
     init();
 </script>
