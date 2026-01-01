@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - レイアウト固定版</title>
+    <title>クイズコンソール - 差し込み機能復活版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
@@ -39,8 +39,13 @@
         .btn-sub { background: #9b59b6; color: white; width: 100%; margin-bottom: 10px; }
         .btn-danger { background: #95a5a6; color: white; font-size: 0.8rem; margin-top: 15px; width: 100%; }
         
-        .select-area { margin-top: 20px; padding: 15px; border: 2px solid #2ecc71; border-radius: 12px; background: #fafffa; }
-        #candidateList { max-height: 300px; overflow-y: auto; }
+        /* 差し込みエリアのスタイル */
+        .manual-input-area { margin-top: 20px; padding: 15px; border: 2px solid #9b59b6; border-radius: 12px; background: #fdfaff; }
+        .manual-input-area textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; resize: vertical; }
+        .manual-input-area input { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-size: 0.9rem; box-sizing: border-box; margin-top: 5px; }
+
+        .select-area { margin-top: 10px; padding: 15px; border: 2px solid #2ecc71; border-radius: 12px; background: #fafffa; }
+        #candidateList { max-height: 200px; overflow-y: auto; }
         .candidate-card { background: white; border: 2px solid #eee; padding: 12px; margin-bottom: 10px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; line-height: 1.4; }
         .candidate-card:hover { border-color: #2ecc71; background: #f0fff4; }
         .candidate-ans { color: #27ae60; font-weight: bold; font-size: 0.85rem; border-top: 1px dashed #eee; padding-top: 4px; margin-top: 4px; }
@@ -103,6 +108,13 @@
         <button id="nextBtn" class="btn-next" onclick="nextQuestion()">次の問題をランダム出題</button>
     </div>
 
+    <div class="manual-input-area">
+        <div class="admin-label" style="color:#9b59b6">✏️ 手動で問題を差し込む</div>
+        <textarea id="manualQ" placeholder="問題文を入力してください" rows="2"></textarea>
+        <input type="text" id="manualA" placeholder="答えを入力してください">
+        <button class="btn-sub" style="margin-top:10px; margin-bottom:0;" onclick="insertManualQuestion()">この問題を差し込んで出題</button>
+    </div>
+
     <div class="select-area">
         <div class="admin-label" style="color:#2ecc71">🎯 候補から選んで出題</div>
         <div id="candidateList"></div>
@@ -140,17 +152,19 @@
     let isRunning = false;
     let timer = null;
     let fullText = "";
-    let revealedIndexes = []; // 現在開いている文字のインデックス（0〜）
+    let revealedIndexes = [];
     let subWindow = null;
     let currentSpeed = 100;
 
     async function init() {
-        const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
-        allMasterData.anime = parseCSV(responses[0]);
-        allMasterData.social = parseCSV(responses[1]);
-        allMasterData.life = parseCSV(responses[2]);
-        allMasterData.sport = parseCSV(responses[3]);
-        changeGenre('all');
+        try {
+            const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
+            allMasterData.anime = parseCSV(responses[0]);
+            allMasterData.social = parseCSV(responses[1]);
+            allMasterData.life = parseCSV(responses[2]);
+            allMasterData.sport = parseCSV(responses[3]);
+            changeGenre('all');
+        } catch (e) { document.getElementById("display").innerText = "データの読み込みに失敗しました。"; }
     }
 
     function parseCSV(text) {
@@ -167,8 +181,7 @@
             event.target.classList.add('active');
         }
         currentQuizPool = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
-        if (history.length === 0) nextQuestion();
-        else refreshCandidates();
+        if (history.length === 0) nextQuestion(); else refreshCandidates();
     }
 
     function resetAllQuiz() {
@@ -190,17 +203,38 @@
     }
 
     function selectCandidate(item) {
-        history.push(item); currentIdx = history.length - 1;
-        resetState(); refreshCandidates();
+        history.push(item);
+        currentIdx = history.length - 1;
+        resetState();
+    }
+
+    // 💡 差し込み機能のロジック
+    function insertManualQuestion() {
+        const q = document.getElementById("manualQ").value.trim();
+        const a = document.getElementById("manualA").value.trim();
+        if (!q || !a) { alert("問題と答えの両方を入力してください"); return; }
+        
+        const item = { q, a };
+        history.push(item);
+        currentIdx = history.length - 1;
+        
+        // 入力欄をクリア
+        document.getElementById("manualQ").value = "";
+        document.getElementById("manualA").value = "";
+        
+        resetState();
     }
 
     function nextQuestion() {
-        if (currentIdx < history.length - 1) currentIdx++;
-        else {
+        if (currentIdx < history.length - 1) {
+            currentIdx++;
+        } else {
             const randomItem = currentQuizPool[Math.floor(Math.random() * currentQuizPool.length)];
-            history.push(randomItem); currentIdx = history.length - 1;
+            history.push(randomItem);
+            currentIdx = history.length - 1;
         }
-        resetState(); refreshCandidates();
+        resetState();
+        refreshCandidates();
     }
 
     function prevQuestion() {
@@ -213,7 +247,7 @@
         if (currentIdx === -1) return;
         const item = history[currentIdx];
         fullText = item.q;
-        revealedIndexes = []; // 最初は何も開いていない
+        revealedIndexes = [];
 
         document.getElementById("adminFullText").innerText = fullText;
         document.getElementById("adminAnswer").innerText = item.a;
@@ -283,20 +317,13 @@
 
     function syncDisplay() {
         const isTypeMode = document.getElementById("typeMode").checked;
-        
-        // HTML文字列を生成して視聴者画面に渡す
         const htmlContent = Array.from(fullText).map((char, i) => {
             const isRevealed = revealedIndexes.includes(i);
-            if (isRevealed) {
-                return `<span>${char}</span>`;
-            } else {
-                // 文字種モードなら「＿」、通常モードなら「透明な文字」
-                return isTypeMode ? `<span style="color:#ccc;">＿</span>` : `<span style="opacity:0;">${char}</span>`;
-            }
+            if (isRevealed) return `<span>${char}</span>`;
+            else return isTypeMode ? `<span style="color:#ccc;">＿</span>` : `<span style="opacity:0;">${char}</span>`;
         }).join("");
 
         document.getElementById("display").innerHTML = htmlContent;
-        
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("text").innerHTML = htmlContent;
             subWindow.document.getElementById("num").innerText = `第 ${currentIdx + 1} 問`;
