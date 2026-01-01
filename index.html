@@ -3,42 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ジャンル別早押しクイズ - 出題者コンソール</title>
+    <title>クイズコンソール - リセット機能付</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        h1 { font-size: 1.2rem; color: #555; margin: 0; }
-        #qNumber { font-weight: bold; color: #3498db; font-size: 1.2rem; }
         
-        /* ジャンル選択エリア */
+        /* ジャンル選択 */
         .genre-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
-        .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.9rem; padding: 8px 15px; }
+        .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.85rem; padding: 6px 12px; }
         .btn-genre.active { background: #3498db; color: white; border-color: #2980b9; }
 
-        #display { font-size: 1.2rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 5px; background: #f9f9f9; white-space: pre-wrap; word-break: break-all; line-height: 1.6;}
-        
-        .admin-ans-area { background: #e8f4fd; border: 2px solid #3498db; padding: 10px; border-radius: 8px; margin-bottom: 15px; color: #2c3e50; }
-        .admin-label { font-size: 0.7rem; font-weight: bold; color: #3498db; margin-bottom: 5px; }
-        #adminAnswer { font-size: 1.4rem; font-weight: bold; }
+        .admin-ans-area { background: #e8f4fd; border: 2px solid #3498db; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .admin-label { font-size: 0.7rem; font-weight: bold; color: #3498db; margin-bottom: 3px; }
+        #adminAnswer { font-size: 1.3rem; font-weight: bold; color: #2c3e50; }
 
-        .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; }
+        #display { font-size: 1.1rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; background: #f9f9f9; white-space: pre-wrap; line-height: 1.6;}
+        
+        .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
         .setting-item { display: flex; align-items: center; justify-content: space-between; }
         
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 15px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .reset-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         
-        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
+        button { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: bold; transition: 0.2s; }
         button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
+        
         .btn-primary { background: #3498db; color: white; }
         .btn-stop { background: #e74c3c; color: white; }
         .btn-next { background: #2ecc71; color: white; }
-        .btn-type { background: #95a5a6; color: white; font-size: 0.8rem; padding: 8px 12px; }
+        .btn-reset-current { background: #f39c12; color: white; } /* オレンジ */
+        .btn-reset-all { background: #95a5a6; color: white; }    /* グレー */
         .btn-sub { background: #9b59b6; color: white; margin-bottom: 10px; width: 100%; }
-        
-        #ansBox { margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 5px solid #ffc107; border-radius: 4px; display: none; }
-        .status-msg { font-size: 0.75rem; color: #7f8c8d; text-align: center; }
-        input[type="range"] { width: 120px; }
+        .btn-type { background: #95a5a6; color: white; font-size: 0.75rem; padding: 6px 10px; }
+
+        .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 10px; }
+        #ansBox { margin-top: 10px; padding: 15px; background: #fff3cd; border-left: 5px solid #ffc107; border-radius: 4px; display: none; text-align: center; }
+        .status-msg { font-size: 0.7rem; color: #7f8c8d; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -47,10 +47,10 @@
     <button id="openSubBtn" class="btn-sub" onclick="openSubWindow()">💻 視聴者用ウィンドウを開く</button>
     
     <div class="genre-selector" id="genreButtons">
-        <button class="btn-genre active" onclick="changeGenre('all')">ノンジャンル</button>
-        <button class="btn-genre" onclick="changeGenre('anime')">アニメ・ゲーム</button>
-        <button class="btn-genre" onclick="changeGenre('social')">社会</button>
-        <button class="btn-genre" onclick="changeGenre('life')">ライフスタイル</button>
+        <button class="btn-genre active" onclick="changeGenre('all', event)">全ジャンル</button>
+        <button class="btn-genre" onclick="changeGenre('anime', event)">アニメ・ゲーム</button>
+        <button class="btn-genre" onclick="changeGenre('social', event)">社会</button>
+        <button class="btn-genre" onclick="changeGenre('life', event)">ライフスタイル</button>
     </div>
 
     <div class="settings-bar">
@@ -65,11 +65,8 @@
         <div id="adminAnswer">---</div>
     </div>
 
-    <div class="header">
-        <h1 id="qNumber">読み込み中...</h1>
-    </div>
-
-    <div id="display">「開始」で読み上げます</div>
+    <div id="qNumber" style="font-size:0.9rem; margin-bottom:5px; color:#3498db; font-weight:bold;">第 - 問</div>
+    <div id="display">データを読み込み中...</div>
 
     <div class="type-controls" id="typeButtons" style="display:none;">
         <button id="btn-symbol" class="btn-type" onclick="revealSpecific('symbol')">記号</button>
@@ -82,9 +79,14 @@
     <div class="controls">
         <button id="startBtn" class="btn-primary" onclick="startQuiz()">開始 (Space)</button>
         <button id="stopBtn" class="btn-stop" onclick="stopQuiz()" disabled>停止 (Space)</button>
-        <button id="resumeBtn" class="btn-primary" onclick="resumeQuiz()" disabled>再開</button>
+    </div>
+
+    <div class="reset-controls">
+        <button class="btn-reset-current" onclick="resetCurrentQuestion()">今の問題をやり直し</button>
         <button id="nextBtn" class="btn-next" onclick="nextQuestion()" disabled>次の問題</button>
     </div>
+
+    <button class="btn-reset-all" onclick="resetAll()">最初からやり直し (シャッフル)</button>
 
     <div id="ansBox">
         <strong style="color:#e67e22">【視聴者画面に正解表示中】</strong>
@@ -97,7 +99,6 @@
 </div>
 
 <script>
-    // URL設定
     const URLS = {
         anime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTBRf9k4zS7Ht5s7GKejqT2d-cyWbDHd19DwTPmAzoHe40d9nV1cVu-RH565sIq9GbYmEKkzhpBytp/pub?output=csv",
         social: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXVYOqHu_0VRIkiVK0RQO-ZWPZ6pHGqIw5VxBWdOlg3-HbP3q26gM0fVxTndREhjqbaxFzcjeuoMcE/pub?output=csv",
@@ -121,7 +122,6 @@
         ansBox: document.getElementById("ansBox"),
         startBtn: document.getElementById("startBtn"),
         stopBtn: document.getElementById("stopBtn"),
-        resumeBtn: document.getElementById("resumeBtn"),
         nextBtn: document.getElementById("nextBtn"),
         typeMode: document.getElementById("typeMode"),
         typeButtons: document.getElementById("typeButtons"),
@@ -153,12 +153,6 @@
         }
     }
 
-    function updateSpeedDisplay() {
-        currentSpeed = parseInt(els.speedRange.value);
-        els.speedVal.innerText = currentSpeed;
-        if (isRunning) { clearInterval(timer); startTimer(); }
-    }
-
     function shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -166,45 +160,53 @@
         }
     }
 
-    async function fetchCSV(url) {
-        const response = await fetch(url);
-        const csvText = await response.text();
-        const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
+    async function init() {
+        try {
+            document.getElementById("status").innerText = "データを同期中...";
+            const [a, s, l] = await Promise.all([
+                fetch(URLS.anime).then(r => r.text()),
+                fetch(URLS.social).then(r => r.text()),
+                fetch(URLS.life).then(r => r.text())
+            ]);
+            allMasterData.anime = parseCSV(a);
+            allMasterData.social = parseCSV(s);
+            allMasterData.life = parseCSV(l);
+            changeGenre('all');
+        } catch (e) {
+            els.display.innerText = "エラー：スプレッドシートが取得できません。";
+        }
+    }
+
+    function parseCSV(text) {
+        const rows = text.split(/\r?\n/).filter(r => r.trim() !== "");
         return rows.slice(1).map(row => {
             const parts = row.split(",");
             return { q: parts[0] || "", a: parts[1] || "" };
         });
     }
 
-    async function init() {
-        try {
-            document.getElementById("status").innerText = "全ジャンルのデータを同期中...";
-            allMasterData.anime = await fetchCSV(URLS.anime);
-            allMasterData.social = await fetchCSV(URLS.social);
-            allMasterData.life = await fetchCSV(URLS.life);
-            changeGenre('all');
-        } catch (e) {
-            els.display.innerText = "データ読み込みエラー。スプレッドシートの公開設定を確認してください。";
+    function changeGenre(genre, event) {
+        if (event) {
+            const btns = document.querySelectorAll('.btn-genre');
+            btns.forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
         }
+        quizData = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life] : [...allMasterData[genre]];
+        resetAll();
     }
 
-    function changeGenre(genre) {
-        // ボタンの見た目変更
-        const btns = document.querySelectorAll('.btn-genre');
-        btns.forEach(b => b.classList.remove('active'));
-        event.target.classList.add('active');
-
-        // データ作成
-        if (genre === 'all') {
-            quizData = [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life];
-        } else {
-            quizData = [...allMasterData[genre]];
-        }
-        
+    // 全体をリセット（1問目に戻る）
+    function resetAll() {
         shuffleArray(quizData);
         currentIdx = 0;
         resetState();
-        document.getElementById("status").innerText = `ジャンルを変更: 問題数 ${quizData.length}`;
+        document.getElementById("status").innerText = "全問題をシャッフルしてリセットしました。";
+    }
+
+    // 今の問題をリセット（最初から読み直す）
+    function resetCurrentQuestion() {
+        resetState();
+        document.getElementById("status").innerText = "現在の問題をリセットしました。";
     }
 
     function resetState() {
@@ -224,7 +226,6 @@
         
         els.qNumber.innerText = `第 ${currentIdx + 1} 問`;
         els.adminAnswer.innerText = quizData[currentIdx].a;
-        
         syncDisplay();
         if (subWindow && !subWindow.closed) subWindow.document.getElementById("ans").style.display = "none";
         if (!els.typeMode.checked) els.display.innerText = "「開始」で読み上げます";
@@ -232,7 +233,6 @@
         els.ansBox.style.display = "none";
         els.startBtn.disabled = false;
         els.stopBtn.disabled = true;
-        els.resumeBtn.disabled = true;
         els.nextBtn.disabled = true;
     }
 
@@ -246,8 +246,7 @@
     }
 
     function startTimer() {
-        let i = els.typeMode.checked ? displayedTextArray.indexOf("＿") : displayedTextArray.length;
-        if (i === -1) i = fullText.length;
+        let i = els.typeMode.checked ? (displayedTextArray.indexOf("＿") === -1 ? fullText.length : displayedTextArray.indexOf("＿")) : displayedTextArray.length;
         timer = setInterval(() => {
             if (i < fullText.length) {
                 if (els.typeMode.checked) { displayedTextArray[i] = fullText[i]; } 
@@ -257,6 +256,32 @@
             } else { stopQuiz(); }
         }, currentSpeed);
     }
+
+    function stopQuiz() {
+        isRunning = false;
+        clearInterval(timer);
+        els.stopBtn.disabled = true;
+        els.nextBtn.disabled = false;
+        els.ansBox.style.display = "block";
+        if (subWindow && !subWindow.closed) {
+            const ansEl = subWindow.document.getElementById("ans");
+            ansEl.innerText = quizData[currentIdx].a;
+            ansEl.style.display = "block";
+        }
+    }
+
+    function nextQuestion() {
+        currentIdx = (currentIdx + 1) % quizData.length;
+        resetState();
+    }
+
+    function updateSpeedDisplay() {
+        currentSpeed = parseInt(els.speedRange.value);
+        els.speedVal.innerText = currentSpeed;
+        if (isRunning) { clearInterval(timer); startTimer(); }
+    }
+
+    function toggleTypeMode() { resetState(); }
 
     function revealSpecific(category) {
         const patterns = {
@@ -272,34 +297,6 @@
         syncDisplay();
         document.getElementById(`btn-${category}`).disabled = true;
     }
-
-    function stopQuiz() {
-        isRunning = false;
-        clearInterval(timer);
-        els.stopBtn.disabled = true;
-        els.resumeBtn.disabled = false;
-        els.nextBtn.disabled = false;
-        els.ansBox.style.display = "block";
-        if (subWindow && !subWindow.closed) {
-            const ansEl = subWindow.document.getElementById("ans");
-            ansEl.innerText = quizData[currentIdx].a;
-            ansEl.style.display = "block";
-        }
-    }
-
-    function resumeQuiz() {
-        els.resumeBtn.disabled = true;
-        els.ansBox.style.display = "none";
-        if (subWindow && !subWindow.closed) subWindow.document.getElementById("ans").style.display = "none";
-        startQuiz();
-    }
-
-    function nextQuestion() {
-        currentIdx = (currentIdx + 1) % quizData.length;
-        resetState();
-    }
-
-    function toggleTypeMode() { resetState(); }
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
