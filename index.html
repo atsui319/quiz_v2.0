@@ -3,38 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>早押しクイズ - コントローラー</title>
+    <title>ジャンル別早押しクイズ - 出題者コンソール</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         h1 { font-size: 1.2rem; color: #555; margin: 0; }
         #qNumber { font-weight: bold; color: #3498db; font-size: 1.2rem; }
-        #display { font-size: 1.2rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #f9f9f9; white-space: pre-wrap; word-break: break-all; }
+        
+        /* ジャンル選択エリア */
+        .genre-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.9rem; padding: 8px 15px; }
+        .btn-genre.active { background: #3498db; color: white; border-color: #2980b9; }
+
+        #display { font-size: 1.2rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 5px; background: #f9f9f9; white-space: pre-wrap; word-break: break-all; line-height: 1.6;}
+        
+        .admin-ans-area { background: #e8f4fd; border: 2px solid #3498db; padding: 10px; border-radius: 8px; margin-bottom: 15px; color: #2c3e50; }
+        .admin-label { font-size: 0.7rem; font-weight: bold; color: #3498db; margin-bottom: 5px; }
+        #adminAnswer { font-size: 1.4rem; font-weight: bold; }
+
+        .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; }
+        .setting-item { display: flex; align-items: center; justify-content: space-between; }
+        
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 15px; }
+        
         button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.2s; }
-        button:disabled { background: #ccc !important; cursor: not-allowed; }
+        button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
         .btn-primary { background: #3498db; color: white; }
         .btn-stop { background: #e74c3c; color: white; }
         .btn-next { background: #2ecc71; color: white; }
+        .btn-type { background: #95a5a6; color: white; font-size: 0.8rem; padding: 8px 12px; }
         .btn-sub { background: #9b59b6; color: white; margin-bottom: 10px; width: 100%; }
+        
         #ansBox { margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 5px solid #ffc107; border-radius: 4px; display: none; }
-        .status-msg { font-size: 0.8rem; color: #7f8c8d; text-align: center; }
+        .status-msg { font-size: 0.75rem; color: #7f8c8d; text-align: center; }
+        input[type="range"] { width: 120px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <button id="openSubBtn" class="btn-sub" onclick="openSubWindow()">💻 問題表示用ウィンドウを開く</button>
+    <button id="openSubBtn" class="btn-sub" onclick="openSubWindow()">💻 視聴者用ウィンドウを開く</button>
     
-    <div class="header">
-        <h1 id="qNumber">読み込み中...</h1>
-        <div>
-            <input type="checkbox" id="typeMode"> <label for="typeMode">文字種別出し</label>
+    <div class="genre-selector" id="genreButtons">
+        <button class="btn-genre active" onclick="changeGenre('all')">ノンジャンル</button>
+        <button class="btn-genre" onclick="changeGenre('anime')">アニメ・ゲーム</button>
+        <button class="btn-genre" onclick="changeGenre('social')">社会</button>
+        <button class="btn-genre" onclick="changeGenre('life')">ライフスタイル</button>
+    </div>
+
+    <div class="settings-bar">
+        <div class="setting-item">
+            <label><input type="checkbox" id="typeMode" onchange="toggleTypeMode()"> 文字種別出し</label>
+            <span>速度: <input type="range" id="speedRange" min="10" max="500" step="10" value="100" onchange="updateSpeedDisplay()"><span id="speedVal">100</span>ms</span>
         </div>
     </div>
 
+    <div class="admin-ans-area">
+        <div class="admin-label">出題者用答え</div>
+        <div id="adminAnswer">---</div>
+    </div>
+
+    <div class="header">
+        <h1 id="qNumber">読み込み中...</h1>
+    </div>
+
     <div id="display">「開始」で読み上げます</div>
+
+    <div class="type-controls" id="typeButtons" style="display:none;">
+        <button id="btn-symbol" class="btn-type" onclick="revealSpecific('symbol')">記号</button>
+        <button id="btn-alpha" class="btn-type" onclick="revealSpecific('alpha')">英数</button>
+        <button id="btn-kanji" class="btn-type" onclick="revealSpecific('kanji')">漢字</button>
+        <button id="btn-katakana" class="btn-type" onclick="revealSpecific('katakana')">カナ</button>
+        <button id="btn-hiragana" class="btn-type" onclick="revealSpecific('hiragana')">かな</button>
+    </div>
 
     <div class="controls">
         <button id="startBtn" class="btn-primary" onclick="startQuiz()">開始 (Space)</button>
@@ -44,7 +87,7 @@
     </div>
 
     <div id="ansBox">
-        <strong>答え:</strong> <span id="answerText"></span>
+        <strong style="color:#e67e22">【視聴者画面に正解表示中】</strong>
         <div style="margin-top:10px; display: flex; gap:10px;">
             <button style="flex:1; background:#2ecc71; color:white;" onclick="nextQuestion()">正解</button>
             <button style="flex:1; background:#e74c3c; color:white;" onclick="nextQuestion()">不正解</button>
@@ -54,52 +97,66 @@
 </div>
 
 <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTBRf9k4zS7Ht5s7GKejqT2d-cyWbDHd19DwTPmAzoHe40d9nV1cVu-RH565sIq9GbYmEKkzhpBytp/pub?output=csv";
-    
+    // URL設定
+    const URLS = {
+        anime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTBRf9k4zS7Ht5s7GKejqT2d-cyWbDHd19DwTPmAzoHe40d9nV1cVu-RH565sIq9GbYmEKkzhpBytp/pub?output=csv",
+        social: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXVYOqHu_0VRIkiVK0RQO-ZWPZ6pHGqIw5VxBWdOlg3-HbP3q26gM0fVxTndREhjqbaxFzcjeuoMcE/pub?output=csv",
+        life: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTr7JL0lBCMLRBFi-CraPlJxzp4xrGD8RSnc8MSuoV3ORISo0iCFWMmI_FCtDlgkxwPqmv_TwAvufn/pub?output=csv"
+    };
+
+    let allMasterData = { anime: [], social: [], life: [] };
     let quizData = [];
     let currentIdx = 0;
     let isRunning = false;
     let timer = null;
-    let displayedCount = 0;
     let fullText = "";
+    let displayedTextArray = [];
     let subWindow = null;
+    let currentSpeed = 100;
 
     const els = {
         display: document.getElementById("display"),
         qNumber: document.getElementById("qNumber"),
-        answerText: document.getElementById("answerText"),
+        adminAnswer: document.getElementById("adminAnswer"),
         ansBox: document.getElementById("ansBox"),
         startBtn: document.getElementById("startBtn"),
         stopBtn: document.getElementById("stopBtn"),
         resumeBtn: document.getElementById("resumeBtn"),
         nextBtn: document.getElementById("nextBtn"),
+        typeMode: document.getElementById("typeMode"),
+        typeButtons: document.getElementById("typeButtons"),
+        speedRange: document.getElementById("speedRange"),
+        speedVal: document.getElementById("speedVal")
     };
 
-    // サブウィンドウを開く関数
     function openSubWindow() {
         subWindow = window.open("", "QuizDisplay", "width=800,height=600");
         subWindow.document.write(`
             <html><head><title>クイズ画面</title>
             <style>
-                body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
-                #text { font-size: 3rem; width: 90%; text-align: left; line-height: 1.4; word-break: break-all; white-space: pre-wrap; }
-                #num { position: absolute; top: 20px; left: 20px; font-size: 1.5rem; color: #3498db; }
+                body { background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
+                #text { font-size: 3.5rem; width: 90%; text-align: left; line-height: 1.5; word-break: break-all; white-space: pre-wrap; letter-spacing: 0.1em; }
+                #num { position: absolute; top: 30px; left: 30px; font-size: 2rem; color: #3498db; font-weight: bold; }
+                #ans { margin-top: 50px; font-size: 5rem; color: #f1c40f; display: none; font-weight: bold; border: 5px solid #f1c40f; padding: 20px; border-radius: 15px; }
             </style></head>
-            <body>
-                <div id="num"></div>
-                <div id="text"></div>
-            </body></html>
+            <body><div id="num"></div><div id="text"></div><div id="ans"></div></body></html>
         `);
-        syncSubWindow();
+        syncDisplay();
     }
 
-    // メインとサブの表示を同期させる
-    function updateDisplay(text) {
+    function syncDisplay() {
+        const text = displayedTextArray.join("");
         els.display.innerText = text;
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("text").innerText = text;
             subWindow.document.getElementById("num").innerText = els.qNumber.innerText;
         }
+    }
+
+    function updateSpeedDisplay() {
+        currentSpeed = parseInt(els.speedRange.value);
+        els.speedVal.innerText = currentSpeed;
+        if (isRunning) { clearInterval(timer); startTimer(); }
     }
 
     function shuffleArray(array) {
@@ -109,51 +166,111 @@
         }
     }
 
-    async function loadData() {
+    async function fetchCSV(url) {
+        const response = await fetch(url);
+        const csvText = await response.text();
+        const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
+        return rows.slice(1).map(row => {
+            const parts = row.split(",");
+            return { q: parts[0] || "", a: parts[1] || "" };
+        });
+    }
+
+    async function init() {
         try {
-            const response = await fetch(SHEET_URL);
-            const csvText = await response.text();
-            const rows = csvText.split(/\r?\n/).filter(row => row.trim() !== "");
-            let data = rows.slice(1).map(row => {
-                const parts = row.split(",");
-                return { q: parts[0] || "", a: parts[1] || "" };
-            });
-            shuffleArray(data);
-            quizData = data;
-            resetState();
+            document.getElementById("status").innerText = "全ジャンルのデータを同期中...";
+            allMasterData.anime = await fetchCSV(URLS.anime);
+            allMasterData.social = await fetchCSV(URLS.social);
+            allMasterData.life = await fetchCSV(URLS.life);
+            changeGenre('all');
         } catch (e) {
-            els.display.innerText = "データ読み込みエラー";
+            els.display.innerText = "データ読み込みエラー。スプレッドシートの公開設定を確認してください。";
         }
+    }
+
+    function changeGenre(genre) {
+        // ボタンの見た目変更
+        const btns = document.querySelectorAll('.btn-genre');
+        btns.forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // データ作成
+        if (genre === 'all') {
+            quizData = [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life];
+        } else {
+            quizData = [...allMasterData[genre]];
+        }
+        
+        shuffleArray(quizData);
+        currentIdx = 0;
+        resetState();
+        document.getElementById("status").innerText = `ジャンルを変更: 問題数 ${quizData.length}`;
     }
 
     function resetState() {
         isRunning = false;
         clearInterval(timer);
+        if (quizData.length === 0) return;
         fullText = quizData[currentIdx].q;
-        displayedCount = 0;
+        
+        if (els.typeMode.checked) {
+            displayedTextArray = new Array(fullText.length).fill("＿");
+            els.typeButtons.style.display = "flex";
+            ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
+        } else {
+            displayedTextArray = [];
+            els.typeButtons.style.display = "none";
+        }
+        
         els.qNumber.innerText = `第 ${currentIdx + 1} 問`;
-        updateDisplay("「開始」で読み上げます");
+        els.adminAnswer.innerText = quizData[currentIdx].a;
+        
+        syncDisplay();
+        if (subWindow && !subWindow.closed) subWindow.document.getElementById("ans").style.display = "none";
+        if (!els.typeMode.checked) els.display.innerText = "「開始」で読み上げます";
+        
         els.ansBox.style.display = "none";
         els.startBtn.disabled = false;
         els.stopBtn.disabled = true;
         els.resumeBtn.disabled = true;
         els.nextBtn.disabled = true;
-        els.answerText.innerText = quizData[currentIdx].a;
     }
 
     function startQuiz() {
-        if (isRunning) return;
+        if (isRunning || quizData.length === 0) return;
         isRunning = true;
         els.startBtn.disabled = true;
         els.stopBtn.disabled = false;
+        if (!els.typeMode.checked && displayedTextArray.length === 0) displayedTextArray = [];
+        startTimer();
+    }
+
+    function startTimer() {
+        let i = els.typeMode.checked ? displayedTextArray.indexOf("＿") : displayedTextArray.length;
+        if (i === -1) i = fullText.length;
         timer = setInterval(() => {
-            if (displayedCount < fullText.length) {
-                displayedCount++;
-                updateDisplay(fullText.substring(0, displayedCount));
-            } else {
-                stopQuiz();
-            }
-        }, 100);
+            if (i < fullText.length) {
+                if (els.typeMode.checked) { displayedTextArray[i] = fullText[i]; } 
+                else { displayedTextArray.push(fullText[i]); }
+                syncDisplay();
+                i++;
+            } else { stopQuiz(); }
+        }, currentSpeed);
+    }
+
+    function revealSpecific(category) {
+        const patterns = {
+            symbol: /[、。！？（）「」『』\s]/,
+            alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/,
+            kanji: /[一-龠]/,
+            katakana: /[ァ-ヴー]/,
+            hiragana: /[ぁ-ん]/
+        };
+        for (let i = 0; i < fullText.length; i++) {
+            if (patterns[category].test(fullText[i])) displayedTextArray[i] = fullText[i];
+        }
+        syncDisplay();
+        document.getElementById(`btn-${category}`).disabled = true;
     }
 
     function stopQuiz() {
@@ -163,11 +280,17 @@
         els.resumeBtn.disabled = false;
         els.nextBtn.disabled = false;
         els.ansBox.style.display = "block";
+        if (subWindow && !subWindow.closed) {
+            const ansEl = subWindow.document.getElementById("ans");
+            ansEl.innerText = quizData[currentIdx].a;
+            ansEl.style.display = "block";
+        }
     }
 
     function resumeQuiz() {
         els.resumeBtn.disabled = true;
         els.ansBox.style.display = "none";
+        if (subWindow && !subWindow.closed) subWindow.document.getElementById("ans").style.display = "none";
         startQuiz();
     }
 
@@ -176,12 +299,7 @@
         resetState();
     }
 
-    function syncSubWindow() {
-        if (subWindow && !subWindow.closed) {
-            subWindow.document.getElementById("num").innerText = els.qNumber.innerText;
-            subWindow.document.getElementById("text").innerText = els.display.innerText;
-        }
-    }
+    function toggleTypeMode() { resetState(); }
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
@@ -191,7 +309,7 @@
         }
     });
 
-    loadData();
+    init();
 </script>
 </body>
 </html>
