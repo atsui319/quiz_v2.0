@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - ハイブリッド表示版</title>
+    <title>クイズコンソール - レイアウト固定版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
@@ -140,7 +140,7 @@
     let isRunning = false;
     let timer = null;
     let fullText = "";
-    let displayedTextArray = [];
+    let revealedIndexes = []; // 現在開いている文字のインデックス（0〜）
     let subWindow = null;
     let currentSpeed = 100;
 
@@ -167,18 +167,13 @@
             event.target.classList.add('active');
         }
         currentQuizPool = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
-        if (history.length === 0) {
-            nextQuestion();
-        } else {
-            refreshCandidates();
-        }
+        if (history.length === 0) nextQuestion();
+        else refreshCandidates();
     }
 
     function resetAllQuiz() {
-        history = [];
-        currentIdx = -1;
-        refreshCandidates();
-        nextQuestion();
+        history = []; currentIdx = -1;
+        refreshCandidates(); nextQuestion();
     }
 
     function refreshCandidates() {
@@ -195,29 +190,21 @@
     }
 
     function selectCandidate(item) {
-        history.push(item);
-        currentIdx = history.length - 1;
-        resetState();
-        refreshCandidates();
+        history.push(item); currentIdx = history.length - 1;
+        resetState(); refreshCandidates();
     }
 
     function nextQuestion() {
-        if (currentIdx < history.length - 1) {
-            currentIdx++;
-        } else {
+        if (currentIdx < history.length - 1) currentIdx++;
+        else {
             const randomItem = currentQuizPool[Math.floor(Math.random() * currentQuizPool.length)];
-            history.push(randomItem);
-            currentIdx = history.length - 1;
+            history.push(randomItem); currentIdx = history.length - 1;
         }
-        resetState();
-        refreshCandidates();
+        resetState(); refreshCandidates();
     }
 
     function prevQuestion() {
-        if (currentIdx > 0) {
-            currentIdx--;
-            resetState();
-        }
+        if (currentIdx > 0) { currentIdx--; resetState(); }
     }
 
     function resetState() {
@@ -226,31 +213,28 @@
         if (currentIdx === -1) return;
         const item = history[currentIdx];
         fullText = item.q;
+        revealedIndexes = []; // 最初は何も開いていない
+
         document.getElementById("adminFullText").innerText = fullText;
         document.getElementById("adminAnswer").innerText = item.a;
         document.getElementById("qNumber").innerText = `第 ${currentIdx + 1} 問`;
 
         const isTypeMode = document.getElementById("typeMode").checked;
-        
         if (isTypeMode) {
-            // 文字種別出しモード：＿＿＿で初期化
-            displayedTextArray = new Array(fullText.length).fill("＿");
             document.getElementById("typeButtons").style.display = "flex";
             ["symbol", "alpha", "kanji", "katakana", "hiragana"].forEach(cat => document.getElementById(`btn-${cat}`).disabled = false);
             document.getElementById("startBtn").disabled = true;
             document.getElementById("stopBtn").disabled = true;
-            document.getElementById("showAnsBtn").disabled = false;
         } else {
-            // 通常読み上げモード：空白で初期化
-            displayedTextArray = [];
             document.getElementById("typeButtons").style.display = "none";
             document.getElementById("startBtn").disabled = false;
             document.getElementById("stopBtn").disabled = true;
-            document.getElementById("showAnsBtn").disabled = true;
         }
 
+        document.getElementById("showAnsBtn").disabled = isTypeMode ? false : true;
         document.getElementById("prevBtn").disabled = (currentIdx === 0);
         syncDisplay();
+        
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("ans").style.display = "none";
             subWindow.document.getElementById("quiz-view").style.display = "flex";
@@ -267,12 +251,10 @@
     }
 
     function startTimer() {
-        let i = displayedTextArray.length;
         timer = setInterval(() => {
-            if (i < fullText.length) {
-                displayedTextArray.push(fullText[i]);
+            if (revealedIndexes.length < fullText.length) {
+                revealedIndexes.push(revealedIndexes.length);
                 syncDisplay();
-                i++;
             } else { stopQuiz(); }
         }, currentSpeed);
     }
@@ -291,25 +273,40 @@
             kanji: /[一-龠]/, katakana: /[ァ-ヴー]/, hiragana: /[ぁ-ん]/
         };
         for (let i = 0; i < fullText.length; i++) {
-            if (patterns[category].test(fullText[i])) displayedTextArray[i] = fullText[i];
+            if (patterns[category].test(fullText[i]) && !revealedIndexes.includes(i)) {
+                revealedIndexes.push(i);
+            }
         }
         syncDisplay();
         document.getElementById(`btn-${category}`).disabled = true;
+    }
+
+    function syncDisplay() {
+        const isTypeMode = document.getElementById("typeMode").checked;
+        
+        // HTML文字列を生成して視聴者画面に渡す
+        const htmlContent = Array.from(fullText).map((char, i) => {
+            const isRevealed = revealedIndexes.includes(i);
+            if (isRevealed) {
+                return `<span>${char}</span>`;
+            } else {
+                // 文字種モードなら「＿」、通常モードなら「透明な文字」
+                return isTypeMode ? `<span style="color:#ccc;">＿</span>` : `<span style="opacity:0;">${char}</span>`;
+            }
+        }).join("");
+
+        document.getElementById("display").innerHTML = htmlContent;
+        
+        if (subWindow && !subWindow.closed) {
+            subWindow.document.getElementById("text").innerHTML = htmlContent;
+            subWindow.document.getElementById("num").innerText = `第 ${currentIdx + 1} 問`;
+        }
     }
 
     function updateSpeedDisplay() {
         currentSpeed = parseInt(document.getElementById("speedRange").value);
         document.getElementById("speedVal").innerText = currentSpeed;
         if (isRunning) { clearInterval(timer); startTimer(); }
-    }
-
-    function syncDisplay() {
-        const text = displayedTextArray.join("");
-        document.getElementById("display").innerText = text;
-        if (subWindow && !subWindow.closed) {
-            subWindow.document.getElementById("text").innerText = text;
-            subWindow.document.getElementById("num").innerText = `第 ${currentIdx + 1} 問`;
-        }
     }
 
     function toggleSubAnswer() {
@@ -324,9 +321,9 @@
         subWindow = window.open("", "QuizDisplay", "width=1280,height=720");
         subWindow.document.write(`
             <html><head><style>
-                body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; }
+                body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden;}
                 #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;}
-                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap;}
+                #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap; word-break: break-all;}
                 #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; }
                 #result-view { display: none; width: 90%; font-size: 1.5rem; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; max-height: 85vh; overflow-y: auto; }
                 .r-table { width: 100%; border-collapse: collapse; }
@@ -367,10 +364,7 @@
         resetState();
     }
 
-    function resetAndBack() {
-        resetAllQuiz();
-        backToQuiz();
-    }
+    function resetAndBack() { resetAllQuiz(); backToQuiz(); }
 
     init();
 </script>
