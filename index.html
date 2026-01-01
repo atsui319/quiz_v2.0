@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプル早押しクイズ - 出題コンソール</title>
+    <title>クイズコンソール - スポーツ追加版</title>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
         
         .genre-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
-        .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.85rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+        .btn-genre { background: #ecf0f1; color: #7f8c8d; border: 2px solid #bdc3c7; font-size: 0.8rem; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
         .btn-genre.active { background: #3498db; color: white; border-color: #2980b9; }
 
         .admin-ans-area { background: #e8f4fd; border: 2px solid #3498db; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
@@ -45,6 +45,7 @@
         <button class="btn-genre" onclick="changeGenre('anime', event)">アニメ・ゲーム</button>
         <button class="btn-genre" onclick="changeGenre('social', event)">社会</button>
         <button class="btn-genre" onclick="changeGenre('life', event)">ライフスタイル</button>
+        <button class="btn-genre" onclick="changeGenre('sport', event)">スポーツ</button>
     </div>
 
     <div class="settings-bar">
@@ -55,7 +56,7 @@
     </div>
 
     <div class="admin-ans-area">
-        <div class="admin-label">出題者用答え (常に表示)</div>
+        <div class="admin-label">出題者用答え</div>
         <div id="adminAnswer">---</div>
     </div>
 
@@ -80,10 +81,11 @@
     const URLS = {
         anime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTBRf9k4zS7Ht5s7GKejqT2d-cyWbDHd19DwTPmAzoHe40d9nV1cVu-RH565sIq9GbYmEKkzhpBytp/pub?output=csv",
         social: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXVYOqHu_0VRIkiVK0RQO-ZWPZ6pHGqIw5VxBWdOlg3-HbP3q26gM0fVxTndREhjqbaxFzcjeuoMcE/pub?output=csv",
-        life: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTr7JL0lBCMLRBFi-CraPlJxzp4xrGD8RSnc8MSuoV3ORISo0iCFWMmI_FCtDlgkxwPqmv_TwAvufn/pub?output=csv"
+        life: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTr7JL0lBCMLRBFi-CraPlJxzp4xrGD8RSnc8MSuoV3ORISo0iCFWMmI_FCtDlgkxwPqmv_TwAvufn/pub?output=csv",
+        sport: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJYls3O8_98SKNWqx34c0V5HLIaXdxxA8v4E3c1iwrTFZBL1TSxzeem9AbKZKYfMkQEcu7bECcsgVo/pub?output=csv"
     };
 
-    let allMasterData = { anime: [], social: [], life: [] };
+    let allMasterData = { anime: [], social: [], life: [], sport: [] };
     let quizData = [];
     let currentIdx = 0;
     let isRunning = false;
@@ -131,15 +133,14 @@
 
     async function init() {
         try {
-            document.getElementById("status").innerText = "同期中...";
-            const [a, s, l] = await Promise.all([
-                fetch(URLS.anime).then(r => r.text()),
-                fetch(URLS.social).then(r => r.text()),
-                fetch(URLS.life).then(r => r.text())
-            ]);
-            allMasterData.anime = parseCSV(a);
-            allMasterData.social = parseCSV(s);
-            allMasterData.life = parseCSV(l);
+            document.getElementById("status").innerText = "データをロード中...";
+            const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
+            
+            allMasterData.anime = parseCSV(responses[0]);
+            allMasterData.social = parseCSV(responses[1]);
+            allMasterData.life = parseCSV(responses[2]);
+            allMasterData.sport = parseCSV(responses[3]);
+
             changeGenre('all');
         } catch (e) {
             els.display.innerText = "データ読み込みエラー。";
@@ -159,7 +160,11 @@
             document.querySelectorAll('.btn-genre').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
         }
-        quizData = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life] : [...allMasterData[genre]];
+        if (genre === 'all') {
+            quizData = [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport];
+        } else {
+            quizData = [...allMasterData[genre]];
+        }
         resetAll();
     }
 
@@ -170,6 +175,7 @@
         }
         currentIdx = 0;
         resetState();
+        document.getElementById("status").innerText = `読み込み完了: 全 ${quizData.length} 問`;
     }
 
     function resetCurrentQuestion() { resetState(); }
@@ -221,7 +227,7 @@
         isRunning = false;
         clearInterval(timer);
         els.stopBtn.disabled = true;
-        els.startBtn.disabled = false; // 再開できるようにする
+        els.startBtn.disabled = false; 
         els.nextBtn.disabled = false;
         els.showAnsBtn.disabled = false;
     }
@@ -230,7 +236,7 @@
         clearInterval(timer);
         isRunning = false;
         els.stopBtn.disabled = true;
-        els.startBtn.disabled = true; // 最後まで読んだら開始は無効
+        els.startBtn.disabled = true;
         els.nextBtn.disabled = false;
         els.showAnsBtn.disabled = false;
     }
