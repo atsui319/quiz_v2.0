@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クイズコンソール - ランダムセット版</title>
+    <title>クイズコンソール - 改良版</title>
     <style>
-        /* スタイル維持 */
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #eef2f3; padding: 20px; color: #333; }
         .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 650px; margin-bottom: 20px;}
         .genre-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
@@ -19,7 +18,7 @@
         #display { font-size: 1.1rem; min-height: 4em; border: 2px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 10px; background: #f9f9f9; white-space: pre-wrap; line-height: 1.6;}
         .type-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px; justify-content: center; border-top: 1px solid #eee; padding-top: 10px; }
         .btn-type { background: #95a5a6; color: white; font-size: 0.75rem; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-type:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.5; }
+        .btn-type:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.4; }
         .settings-bar { background: #f0f4f7; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; }
         .setting-item { display: flex; align-items: center; justify-content: space-between; }
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -47,11 +46,11 @@
     <button class="btn-sub" onclick="openSubWindow()">💻 視聴者用ウィンドウを開く</button>
     
     <div class="genre-selector">
-        <button class="btn-genre active" onclick="changeGenre('all', event)">全ジャンル</button>
-        <button class="btn-genre" onclick="changeGenre('anime', event)">アニメ・ゲーム</button>
-        <button class="btn-genre" onclick="changeGenre('social', event)">社会</button>
-        <button class="btn-genre" onclick="changeGenre('life', event)">ライフスタイル</button>
-        <button class="btn-genre" onclick="changeGenre('sport', event)">スポーツ</button>
+        <button class="btn-genre active" data-genre="all" onclick="changeGenre('all', event)">全ジャンル</button>
+        <button class="btn-genre" data-genre="anime" onclick="changeGenre('anime', event)">アニメ・ゲーム</button>
+        <button class="btn-genre" data-genre="social" onclick="changeGenre('social', event)">社会</button>
+        <button class="btn-genre" data-genre="life" onclick="changeGenre('life', event)">ライフスタイル</button>
+        <button class="btn-genre" data-genre="sport" onclick="changeGenre('sport', event)">スポーツ</button>
     </div>
 
     <div class="settings-bar">
@@ -109,7 +108,7 @@
     </div>
 
     <button class="btn-finish" onclick="finishQuiz()">🏁 終了しておさらい表示</button>
-    <button class="btn-danger" onclick="if(confirm('リセットしますか？')) resetAllQuiz()">🔄 全履歴をリセット</button>
+    <button class="btn-danger" onclick="if(confirm('履歴を含めリセットしますか？')) resetAllQuiz()">🔄 全履歴をリセット</button>
 </div>
 
 <div class="container" id="resultArea" style="display:none;">
@@ -129,6 +128,15 @@
         sport: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJYls3O8_98SKNWqx34c0V5HLIaXdxxA8v4E3c1iwrTFZBL1TSxzeem9AbKZKYfMkQEcu7bECcsgVo/pub?output=csv"
     };
 
+    // 正規表現の定数化（カタカナ範囲を修正）
+    const PATTERNS = {
+        symbol: /[、。！？（）「」『』\s\-\.\,\:\;\!\?\(\)\[\]\{\}]/,
+        alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/,
+        kanji: /[一-龠]/,
+        katakana: /[ァ-ヶー]/,
+        hiragana: /[ぁ-ん]/
+    };
+
     let allMasterData = { anime: [], social: [], life: [], sport: [] };
     let currentQuizPool = [];
     let history = []; 
@@ -141,17 +149,33 @@
     let currentSpeed = 100;
 
     async function init() {
-        const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
-        allMasterData.anime = parseCSV(responses[0]);
-        allMasterData.social = parseCSV(responses[1]);
-        allMasterData.life = parseCSV(responses[2]);
-        allMasterData.sport = parseCSV(responses[3]);
-        changeGenre('all');
+        try {
+            const responses = await Promise.all(Object.values(URLS).map(url => fetch(url).then(r => r.text())));
+            allMasterData.anime = parseCSV(responses[0]);
+            allMasterData.social = parseCSV(responses[1]);
+            allMasterData.life = parseCSV(responses[2]);
+            allMasterData.sport = parseCSV(responses[3]);
+            
+            // ローカルストレージからの復元を試みる
+            const saved = localStorage.getItem('quiz_history');
+            if(saved) {
+                history = JSON.parse(saved);
+                currentIdx = history.length - 1;
+            }
+            
+            changeGenre('all');
+        } catch (e) {
+            document.getElementById("display").innerText = "データの読み込みに失敗しました。";
+        }
     }
 
     function parseCSV(text) {
         const rows = text.split(/\r?\n/).filter(r => r.trim() !== "");
-        return rows.slice(1).map(row => ({ q: row.split(",")[0] || "", a: row.split(",")[1] || "" }));
+        return rows.slice(1).map(row => {
+            // カンマを含む問題に対応するための簡易パース（本来はライブラリ推奨）
+            const parts = row.split(",");
+            return { q: parts[0] || "", a: parts[1] || "" };
+        });
     }
 
     function changeGenre(genre, event) {
@@ -160,15 +184,20 @@
             event.target.classList.add('active');
         }
         currentQuizPool = genre === 'all' ? [...allMasterData.anime, ...allMasterData.social, ...allMasterData.life, ...allMasterData.sport] : [...allMasterData[genre]];
-        if (history.length === 0) setNextRandom(); else refreshCandidates();
+        
+        if (history.length === 0) {
+            setNextRandom(); 
+        } else {
+            resetState();
+            refreshCandidates();
+        }
     }
 
     function getAvailablePool() {
-        const historyQs = history.map((h, idx) => idx === currentIdx ? null : h.q); // 今編集中の問題以外を除外対象にする
+        const historyQs = history.map((h, idx) => idx === currentIdx ? null : h.q);
         return currentQuizPool.filter(item => !historyQs.includes(item.q));
     }
 
-    // 💡 修正：次の問題をランダムに選んでセットする
     function setNextRandom() {
         if (currentIdx < history.length - 1) {
             currentIdx++;
@@ -178,12 +207,13 @@
         }
 
         const available = getAvailablePool();
-        if (available.length === 0) { alert("問題がもうありません！"); return; }
+        if (available.length === 0) { alert("このジャンルの問題はすべて出題済みです！"); return; }
 
         const randomItem = available[Math.floor(Math.random() * available.length)];
         history.push({ ...randomItem });
         currentIdx = history.length - 1;
         
+        saveHistory();
         resetState();
         refreshCandidates();
     }
@@ -191,7 +221,7 @@
     function refreshCandidates() {
         const listEl = document.getElementById("candidateList");
         listEl.innerHTML = "";
-        const available = getAvailablePool().filter(item => item.q !== history[currentIdx].q);
+        const available = getAvailablePool().filter(item => item.q !== history[currentIdx]?.q);
         document.getElementById("remainingCount").innerText = `未出題の問題: ${available.length} 問`;
 
         const shuffled = [...available].sort(() => 0.5 - Math.random()).slice(0, 5);
@@ -199,7 +229,12 @@
             const div = document.createElement("div");
             div.className = "candidate-card";
             div.innerHTML = `<div>${item.q}</div><div class="candidate-ans">答：${item.a}</div>`;
-            div.onclick = () => { history[currentIdx] = { ...item }; resetState(); refreshCandidates(); };
+            div.onclick = () => { 
+                history[currentIdx] = { ...item }; 
+                saveHistory();
+                resetState(); 
+                refreshCandidates(); 
+            };
             listEl.appendChild(div);
         });
     }
@@ -207,8 +242,9 @@
     function overwriteManual() {
         const q = document.getElementById("manualQ").value.trim();
         const a = document.getElementById("manualA").value.trim();
-        if (!q || !a) return;
+        if (!q || !a) { alert("問題と答えを入力してください"); return; }
         history[currentIdx] = { q, a };
+        saveHistory();
         resetState();
         refreshCandidates();
     }
@@ -216,8 +252,12 @@
     function prevQuestion() { if (currentIdx > 0) { currentIdx--; resetState(); refreshCandidates(); } }
 
     function resetState() {
-        isRunning = false; clearInterval(timer);
+        isRunning = false; 
+        clearInterval(timer);
+        
         const item = history[currentIdx];
+        if(!item) return;
+
         fullText = item.q;
         revealedIndexes = [];
 
@@ -228,13 +268,26 @@
         const isTypeMode = document.getElementById("typeMode").checked;
         document.getElementById("typeButtons").style.display = isTypeMode ? "flex" : "none";
         document.getElementById("startBtn").disabled = isTypeMode;
+        document.getElementById("stopBtn").disabled = true;
         document.getElementById("showAnsBtn").disabled = false;
         document.getElementById("prevBtn").disabled = (currentIdx === 0);
 
+        if (isTypeMode) updateTypeButtonUI();
         syncDisplay();
+        
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("ans").style.display = "none";
         }
+    }
+
+    // 改善：文字種別出しモードで、その文字が含まれないボタンを無効化する
+    function updateTypeButtonUI() {
+        Object.keys(PATTERNS).forEach(key => {
+            const btn = document.getElementById(`btn-${key}`);
+            if (btn) {
+                btn.disabled = !PATTERNS[key].test(fullText);
+            }
+        });
     }
 
     function syncDisplay() {
@@ -244,6 +297,7 @@
             if (isRevealed) return `<span>${char}</span>`;
             else return isTypeMode ? `<span style="color:#ccc;">＿</span>` : `<span style="opacity:0;">${char}</span>`;
         }).join("");
+        
         document.getElementById("display").innerHTML = htmlContent;
         if (subWindow && !subWindow.closed) {
             subWindow.document.getElementById("text").innerHTML = htmlContent;
@@ -251,25 +305,92 @@
         }
     }
 
-    // 基本演出ロジック（以下共通）
-    function startQuiz() { if (isRunning) return; isRunning = true; document.getElementById("startBtn").disabled = true; document.getElementById("stopBtn").disabled = false; startTimer(); }
-    function startTimer() { timer = setInterval(() => { if (revealedIndexes.length < fullText.length) { revealedIndexes.push(revealedIndexes.length); syncDisplay(); } else { stopQuiz(); } }, currentSpeed); }
-    function stopQuiz() { isRunning = false; clearInterval(timer); document.getElementById("stopBtn").disabled = true; document.getElementById("startBtn").disabled = false; }
-    function revealSpecific(category) { const patterns = { symbol: /[、。！？（）「」『』\s]/, alpha: /[a-zA-Z0-9０-９ａ-ｚＡ-Ｚ]/, kanji: /[一-龠]/, katakana: /[ァ-ヴー]/, hiragana: /[ぁ-ん]/ }; for (let i = 0; i < fullText.length; i++) { if (patterns[category].test(fullText[i]) && !revealedIndexes.includes(i)) revealedIndexes.push(i); } syncDisplay(); document.getElementById(`btn-${category}`).disabled = true; }
-    function updateSpeedDisplay() { currentSpeed = parseInt(document.getElementById("speedRange").value); document.getElementById("speedVal").innerText = currentSpeed; if (isRunning) { clearInterval(timer); startTimer(); } }
-    function toggleSubAnswer() { if (subWindow && !subWindow.closed) { const ansEl = subWindow.document.getElementById("ans"); ansEl.innerText = history[currentIdx].a; ansEl.style.display = "block"; } }
+    function startQuiz() { 
+        if (isRunning) return; 
+        isRunning = true; 
+        document.getElementById("startBtn").disabled = true; 
+        document.getElementById("stopBtn").disabled = false; 
+        startTimer(); 
+    }
+
+    function startTimer() { 
+        timer = setInterval(() => { 
+            if (revealedIndexes.length < fullText.length) { 
+                // まだ表示されていないインデックスを探して追加
+                for(let i=0; i<fullText.length; i++){
+                    if(!revealedIndexes.includes(i)){
+                        revealedIndexes.push(i);
+                        break;
+                    }
+                }
+                syncDisplay(); 
+            } else { 
+                stopQuiz(); 
+            } 
+        }, currentSpeed); 
+    }
+
+    function stopQuiz() { 
+        isRunning = false; 
+        clearInterval(timer); 
+        document.getElementById("stopBtn").disabled = true; 
+        document.getElementById("startBtn").disabled = document.getElementById("typeMode").checked; 
+    }
+
+    function revealSpecific(category) { 
+        const pattern = PATTERNS[category];
+        for (let i = 0; i < fullText.length; i++) { 
+            if (pattern.test(fullText[i]) && !revealedIndexes.includes(i)) {
+                revealedIndexes.push(i); 
+            }
+        } 
+        syncDisplay(); 
+        document.getElementById(`btn-${category}`).disabled = true; 
+    }
+
+    function updateSpeedDisplay() { 
+        currentSpeed = parseInt(document.getElementById("speedRange").value); 
+        document.getElementById("speedVal").innerText = currentSpeed; 
+        if (isRunning) { clearInterval(timer); startTimer(); } 
+    }
+
+    function toggleSubAnswer() { 
+        if (subWindow && !subWindow.closed) { 
+            const ansEl = subWindow.document.getElementById("ans"); 
+            ansEl.innerText = history[currentIdx].a; 
+            ansEl.style.display = "block"; 
+        } 
+    }
+
     function openSubWindow() {
         subWindow = window.open("", "QuizDisplay", "width=1280,height=720");
         subWindow.document.write(`<html><head><style>body { background: radial-gradient(circle, #2c3e50 0%, #000 100%); color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden;} #num { position: absolute; top: 40px; left: 40px; font-size: 2.5rem; color: #3498db; font-weight: 900; border-left: 10px solid #3498db; padding-left: 20px;} #text { font-size: 3.5rem; line-height: 1.4; font-weight: 700; width: 85%; text-align: center; white-space: pre-wrap; word-break: break-all;} #ans { font-size: 5rem; color: #f1c40f; display: none; font-weight: 900; border: 8px solid #f1c40f; padding: 10px 50px; border-radius: 20px; margin-top: 30px; }</style></head><body><div id="num"></div><div id="text"></div><div id="ans"></div></body></html>`);
+        // ウィンドウを開いた直後に現在の状態を同期
+        setTimeout(() => syncDisplay(), 500);
     }
+
     function finishQuiz() {
         document.getElementById("mainContainer").style.display = "none";
         document.getElementById("resultArea").style.display = "block";
         const tbody = document.querySelector("#resultTable tbody");
         tbody.innerHTML = history.map((h, i) => `<tr><td style="padding:10px; border-bottom:1px solid #eee;">${i+1}</td><td style="padding:10px; border-bottom:1px solid #eee;">${h.q}</td><td style="padding:10px; border-bottom:1px solid #eee; color:#2ecc71; font-weight:bold;">${h.a}</td></tr>`).join("");
     }
-    function backToQuiz() { document.getElementById("resultArea").style.display = "none"; document.getElementById("mainContainer").style.display = "block"; }
-    function resetAllQuiz() { history = []; currentIdx = -1; setNextRandom(); }
+
+    function backToQuiz() { 
+        document.getElementById("resultArea").style.display = "none"; 
+        document.getElementById("mainContainer").style.display = "block"; 
+    }
+
+    function resetAllQuiz() { 
+        localStorage.removeItem('quiz_history');
+        history = []; 
+        currentIdx = -1; 
+        setNextRandom(); 
+    }
+
+    function saveHistory() {
+        localStorage.setItem('quiz_history', JSON.stringify(history));
+    }
 
     init();
 </script>
