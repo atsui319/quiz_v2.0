@@ -275,16 +275,23 @@
         db.ref().on('value', snap => {
             const d = snap.val() || {}; const name = ni.value.trim();
             const w = (d.waits && d.waits[name]) || 0;
+            const isCorrected = d.correctList && d.correctList[name]; // 正解済みフラグ
+            
             document.getElementById('p-score').innerText = d.scores?.[name] || 0;
             if(d.isGameSet) { goS.style.display = 'flex'; return; } else goS.style.display = 'none';
+
             const isWinner = (d.winner === name && name !== "");
             const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board'));
+            
             bUI.style.display = showBoard ? 'block' : 'none';
-            if(d.correctList?.[name]) sArea.innerHTML = "✅ 正解済み！";
+
+            if(isCorrected) sArea.innerHTML = "✅ 正解済み！";
             else if(isWinner) sArea.innerHTML = "🎤 解答権あり！";
             else if(w > 0) sArea.innerHTML = "❌ お休み中 (" + w + ")";
             else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中";
-            document.getElementById('remote-button').disabled = !(name && w === 0 && d.status === 'active' && !d.winner);
+
+            // ★ボタン無効化条件に「正解済み(isCorrected)」を追加
+            document.getElementById('remote-button').disabled = !(name && w === 0 && d.status === 'active' && !d.winner && !isCorrected);
         });
     }
 
@@ -348,4 +355,5 @@
 </script>
 </body>
 </html>
+
 
