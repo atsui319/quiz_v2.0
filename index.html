@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - The Final Master</title>
+    <title>QuizConsole Pro - The Perfect Final Master</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -12,13 +12,12 @@
         #role-ui { display: block; }
         .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
         
-        /* 管理画面レイアウト修正 */
+        /* 管理画面レイアウト：サイドバー独立スクロール */
         .admin-flex { display: flex; gap: 15px; height: calc(100vh - 40px); max-width: 1600px; margin: 0 auto; }
         .main-panel { flex: 1; overflow-y: auto; padding-right: 5px; }
         .sidebar { width: 380px; display: flex; flex-direction: column; gap: 15px; height: 100%; }
         .sidebar-section { background: white; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; min-height: 0; border: 1px solid #ddd; }
         
-        /* サイドバー内のスクロールエリア */
         #player-mgr-area { height: 35%; flex-shrink: 0; }
         #full-mgr-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 5px; background: #fafafa; }
         #quiz-search-area { flex: 1; }
@@ -27,11 +26,13 @@
         #display { font-size: 1.8rem; background: var(--dark); color: white; padding: 20px; border-radius: 8px; min-height: 4em; display: flex; flex-wrap: wrap; margin-bottom: 15px; border: 4px solid #444; }
         #display span { border-bottom: 2px solid #555; margin-right: 2px; min-width: 0.8em; text-align: center; }
         #display span.hidden { visibility: hidden; }
+        
         .btn-genre { padding: 6px; font-size: 0.7rem; cursor: pointer; flex: 1; border: 1px solid #ccc; background: #fff; border-radius: 4px; }
         .btn-genre.active { background: var(--primary); color: white; }
         .board-ans-item { background: #f8f9fa; border: 1px solid #ddd; padding: 8px; margin-top: 4px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #ccc; }
         .mgr-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
         .type-btns button { padding: 8px 10px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: white; font-weight: bold; font-size: 0.8rem; }
+        
         #remote-button { width: 180px; height: 180px; border-radius: 50%; font-size: 2rem; font-weight: bold; cursor: pointer; border: 8px solid #eee; }
         #remote-button:not(:disabled) { background: var(--danger); color: white; border-color: #c0392b; }
     </style>
@@ -172,31 +173,14 @@
             document.getElementById('activePlayer').innerText = d.winner ? "🎤 " + d.winner : (d.mode === 'all_board' && d.status !== 'waiting' ? "🖊 全員解答中" : "待機中");
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
-            
-            // サイドバー：プレイヤーリスト更新
             const scores = d.scores || {}, waits = d.waits || {};
             const scoreEntries = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-            document.getElementById('full-mgr-list').innerHTML = scoreEntries.map(([n,v]) => `
-                <div class="mgr-item">
-                    <span><b>${n}</b>: ${v}pt</span>
-                    <div>
-                        <button onclick="modifyScore('${n}',1)">+</button>
-                        <span style="color:red;margin:0 5px;">休${waits[n]||0}</span> 
-                        <button onclick="modifyWait('${n}',1)">+</button><button onclick="modifyWait('${n}',-1)">-</button>
-                    </div>
-                </div>`).join('');
-            
-            // ボード回答管理
+            document.getElementById('full-mgr-list').innerHTML = scoreEntries.map(([n,v]) => `<div class="mgr-item"><span><b>${n}</b>: ${v}pt</span><div><button onclick="modifyScore('${n}',1)">+</button><span style="color:red;margin:0 5px;">休${waits[n]||0}</span> <button onclick="modifyWait('${n}',1)">+</button><button onclick="modifyWait('${n}',-1)">-</button></div></div>`).join('');
             const bArea = document.getElementById('boardResults');
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
                 bArea.style.display = 'block';
-                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `
-                    <div class="board-ans-item" style="border-left-color:${d.correctList?.[n]?'var(--success)':(d.wrongList?.[n]?'var(--danger)':'#ccc')}">
-                        <span><strong>${n}:</strong> ${ans}</span>
-                        <div><button onclick="judge(true, '${n}')">〇</button><button onclick="judge(false, '${n}')">×</button></div>
-                    </div>`).join('');
+                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `<div class="board-ans-item" style="border-left-color:${d.correctList?.[n]?'var(--success)':(d.wrongList?.[n]?'var(--danger)':'#ccc')}"><span><strong>${n}:</strong> ${ans}</span><div><button onclick="judge(true, '${n}')">〇</button><button onclick="judge(false, '${n}')">×</button></div></div>`).join('');
             } else bArea.style.display = 'none';
-
             if(subWindow) {
                 subWindow.syncBoard(d); subWindow.toggleRank(d.rankVisible !== false); subWindow.updateRank(scoreEntries);
                 if(d.isGameSet) subWindow.showResult(scoreEntries, history); else subWindow.hideResult();
@@ -208,16 +192,12 @@
     function modifyWait(n, v) { db.ref('waits/'+n).transaction(w => Math.max(0, (w||0)+v)); }
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
     function setGenre(g) { activeGenre = g; renderList(); }
-    
     function renderList() {
         const s = document.getElementById('search').value.toLowerCase();
         let list = masterData[activeGenre] || [];
         if(s) list = list.filter(i => i.q.includes(s) || i.a.includes(s));
         else list = [...list].sort(() => Math.random() - 0.5).slice(0, 30);
-        document.getElementById('quiz-list-area').innerHTML = list.map(i => `
-            <div class="quiz-item" onclick="applyQuiz('${i.q.replace(/'/g,"\\'")}', '${i.a.replace(/'/g,"\\'")}')" style="${usedSet.has(i.q)?'opacity:0.3; padding:10px; border-bottom:1px solid #eee;':'padding:10px; border-bottom:1px solid #eee; cursor:pointer;'}">
-                <strong>${i.a}</strong><br><small>${i.q}</small>
-            </div>`).join('');
+        document.getElementById('quiz-list-area').innerHTML = list.map(i => `<div class="quiz-item" onclick="applyQuiz('${i.q.replace(/'/g,"\\'")}', '${i.a.replace(/'/g,"\\'")}')" style="${usedSet.has(i.q)?'opacity:0.3; padding:10px; border-bottom:1px solid #eee;':'padding:10px; border-bottom:1px solid #eee; cursor:pointer;'}"><strong>${i.a}</strong><br><small>${i.q}</small></div>`).join('');
     }
 
     function applyQuiz(q, a) {
@@ -248,7 +228,7 @@
             kana:/[\u30A0-\u30FF]/, 
             num:/[0-9０-９]/, 
             alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, 
-            sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ・☆★]/ 
+            sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/ 
         };
         let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
         if (count > 0) requestSound('type'); sync();
@@ -275,30 +255,19 @@
         db.ref().on('value', snap => {
             const d = snap.val() || {}; const name = ni.value.trim();
             const w = (d.waits && d.waits[name]) || 0;
-            const isCorrected = d.correctList && d.correctList[name]; // 正解済みフラグ
-            
+            const isCorrected = d.correctList && d.correctList[name];
             document.getElementById('p-score').innerText = d.scores?.[name] || 0;
             if(d.isGameSet) { goS.style.display = 'flex'; return; } else goS.style.display = 'none';
-
             const isWinner = (d.winner === name && name !== "");
             const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board'));
-            
             bUI.style.display = showBoard ? 'block' : 'none';
-
             if(isCorrected) sArea.innerHTML = "✅ 正解済み！";
             else if(isWinner) sArea.innerHTML = "🎤 解答権あり！";
             else if(w > 0) sArea.innerHTML = "❌ お休み中 (" + w + ")";
             else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中";
-
             // ★ボタン無効化条件に「d.mode !== 'all_board'」を追加
-document.getElementById('remote-button').disabled = !(
-    name && 
-    w === 0 && 
-    d.status === 'active' && 
-    !d.winner && 
-    !isCorrected && 
-    d.mode !== 'all_board'  // 全員ボード時はボタンを無効化
-);
+            document.getElementById('remote-button').disabled = !(name && w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board');
+        });
     }
 
     function sendBoardAns() { const name = document.getElementById('p-name').value.trim(), t = document.getElementById('board-text').value.trim(); if(t) { db.ref('boardAnswers/'+name).set(t); db.ref('typing/'+name).set(false); document.getElementById('board-text').value=""; } }
@@ -322,13 +291,7 @@ document.getElementById('remote-button').disabled = !(
             .history-box { flex:1; background:rgba(0,0,0,0.5); padding:25px; border-radius:20px; max-height:75vh; overflow-y:auto; border:1px solid #444;}
             @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         </style></head><body>
-            <div id="result-overlay">
-                <h1 style="color:#f1c40f; font-size:4rem;">🏆 FINAL RESULT 🏆</h1>
-                <div style="display:flex; gap:40px; width:100%; max-width:1300px; justify-content:center; align-items:flex-start;">
-                    <div id="res-list" style="flex:1;"></div>
-                    <div class="history-box"><h2 style="border-bottom:2px solid #fff;padding-bottom:10px;">QUIZ LOG</h2><div id="hist-list"></div></div>
-                </div>
-            </div>
+            <div id="result-overlay"><h1 style="color:#f1c40f; font-size:4rem;">🏆 FINAL RESULT 🏆</h1><div style="display:flex; gap:40px; width:100%; max-width:1300px; justify-content:center; align-items:flex-start;"><div id="res-list" style="flex:1;"></div><div class="history-box"><h2 style="border-bottom:2px solid #fff;padding-bottom:10px;">QUIZ LOG</h2><div id="hist-list"></div></div></div></div>
             <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
             <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
             <script>
@@ -337,11 +300,7 @@ document.getElementById('remote-button').disabled = !(
                 window.reveal = (a,q) => { document.getElementById('ans').innerText=a; document.getElementById('ans').style.display='block'; document.getElementById('text').innerHTML=q; };
                 window.toggleRank = (v) => { document.getElementById('rank-side').style.opacity = v ? '1' : '0'; };
                 window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div style="display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
-                window.showResult = (list, hist) => {
-                    const over = document.getElementById('result-overlay'); if(over.style.display === 'flex') return; over.style.display='flex';
-                    document.getElementById('res-list').innerHTML = list.slice(0,10).map(([n,v],i) => '<div class="res-card" style="border-left-color:'+(i===0?'#f1c40f':(i===1?'#bdc3c7':'#e67e22'))+'"><span>'+(i+1)+'位 '+n+'</span><span>'+v+'pt</span></div>').join('');
-                    document.getElementById('hist-list').innerHTML = hist.map((item,i) => '<div style="margin-bottom:15px;font-size:1rem;border-bottom:1px solid #333;padding-bottom:10px;">第'+(i+1)+'問: '+item.q+'<br><b style="color:#f1c40f;font-size:1.3rem;">正解: '+item.a+'</b></div>').join('');
-                };
+                window.showResult = (list, hist) => { const over = document.getElementById('result-overlay'); if(over.style.display === 'flex') return; over.style.display='flex'; document.getElementById('res-list').innerHTML = list.slice(0,10).map(([n,v],i) => '<div class="res-card" style="border-left-color:'+(i===0?'#f1c40f':(i===1?'#bdc3c7':'#e67e22'))+'"><span>'+(i+1)+'位 '+n+'</span><span>'+v+'pt</span></div>').join(''); document.getElementById('hist-list').innerHTML = hist.map((item,i) => '<div style="margin-bottom:15px;font-size:1rem;border-bottom:1px solid #333;padding-bottom:10px;">第'+(i+1)+'問: '+item.q+'<br><b style="color:#f1c40f;font-size:1.3rem;">正解: '+item.a+'</b></div>').join(''); };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display='none'; };
                 window.syncBoard = (d) => {
                     const area = document.getElementById('board-area');
@@ -361,6 +320,3 @@ document.getElementById('remote-button').disabled = !(
 </script>
 </body>
 </html>
-
-
-
