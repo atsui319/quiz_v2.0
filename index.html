@@ -186,7 +186,20 @@
         });
     }
 
-    function removePlayer(n) { if(confirm(`${n} を削除？`)) { const sn = safeName(n); db.ref('scores/'+sn).remove(); db.ref('waits/'+sn).remove(); db.ref('boardAnswers/'+sn).remove(); db.ref('typing/'+sn).remove(); db.ref('correctList/'+sn).remove(); db.ref('wrongList/'+sn).remove(); } }
+   // プレイヤー削除（キック）のコアロジック
+function removePlayer(n) {
+    if(confirm(`${n} を削除（キック）しますか？`)) {
+        const sn = safeName(n);
+        // Firebase上の全関連ノードを削除
+        db.ref('scores/' + sn).remove();
+        db.ref('waits/' + sn).remove();
+        db.ref('boardAnswers/' + sn).remove();
+        db.ref('typing/' + sn).remove();
+        db.ref('correctList/' + sn).remove();
+        db.ref('wrongList/' + sn).remove();
+        // 削除後、回答者画面は自動的に「待機中」などの初期状態に戻ります
+    }
+}
     function modifyScore(n, v) { db.ref('scores/'+safeName(n)).transaction(s => (s||0)+v); }
     function modifyWait(n, v) { db.ref('waits/'+safeName(n)).transaction(w => Math.max(0, (w||0)+v)); }
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
@@ -305,5 +318,6 @@
 </script>
 </body>
 </html>
+
 
 
