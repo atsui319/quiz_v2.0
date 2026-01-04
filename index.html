@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Result Edition</title>
+    <title>QuizConsole Pro - Final History Edition</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -150,6 +150,7 @@
     };
 
     let masterData = { all: [] }, activeGenre = 'all', usedSet = new Set(), currentQuiz = { q: "", a: "" }, revealed = [];
+    let history = []; // 問題履歴を管理
     let timer = null, subWindow = null, lastStatus = "";
 
     function switchPage(role) {
@@ -208,7 +209,7 @@
                 subWindow.syncBoard(d); 
                 subWindow.toggleRank(d.rankVisible !== false); 
                 subWindow.updateRank(scoreEntries);
-                if(d.isGameSet) subWindow.showResult(scoreEntries);
+                if(d.isGameSet) subWindow.showResult(scoreEntries, history);
                 else subWindow.hideResult();
             }
         });
@@ -231,6 +232,7 @@
 
     function applyQuiz(q, a) {
         clearInterval(timer); currentQuiz = { q, a }; revealed = []; usedSet.add(q);
+        history.push({q, a}); // 履歴に追加
         document.getElementById('admin-q-full').innerText = q;
         document.getElementById('admin-a-full').innerText = a;
         db.ref('waits').once('value', snap => {
@@ -284,7 +286,7 @@
     }
     function openCircleOnly() { db.ref('status').set('active'); Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) revealed.push(i); }); sync(); }
     function openAll() { db.ref('status').set('active'); revealed = Array.from(currentQuiz.q).map((_, i) => i); sync(); }
-    function resetAll() { if (confirm("完全リセットしますか？")) db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false }); }
+    function resetAll() { if (confirm("完全リセットしますか？")) { history = []; db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false }); } }
 
     function initPlayer() {
         const btn = document.getElementById('remote-button'), ni = document.getElementById('p-name'), bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'), pScore = document.getElementById('p-score'), goS = document.getElementById('player-gameover');
@@ -294,7 +296,6 @@
             const myScore = (d.scores && d.scores[name]) || 0;
             const isCorrected = d.correctList && d.correctList[name];
             pScore.innerText = myScore;
-            
             if(d.isGameSet) { goS.style.display = 'flex'; return; } else goS.style.display = 'none';
 
             const isAllBoardActive = (d.mode === 'all_board' && d.status !== 'waiting');
@@ -334,7 +335,7 @@
         subWindow = window.open("", "QuizSub", "width=1200,height=800");
         subWindow.document.write(`<html><head><style>
             body{background:#000;color:#fff;font-family:sans-serif;margin:0;overflow:hidden;display:flex;}
-            #main-container{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;}
+            #main-container{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;transition:0.5s;}
             #rank-side{width:300px;background:#111;border-left:3px solid #333;padding:25px;transition:0.5s;}
             #text{font-size:3.5rem;line-height:1.4;width:95%;text-align:center;font-weight:bold;}
             #text span.hidden{visibility:hidden;}
@@ -344,17 +345,29 @@
             .board-box { background:#222; padding:25px; border-radius:15px; min-width:240px; text-align:center; border:5px solid #555; transition: all 0.3s; }
             .board-box.correct { border-color: #2ecc71 !important; background: #004411 !important; box-shadow: 0 0 20px #2ecc71; }
             .board-box.wrong { border-color: #e74c3c !important; background: #440000 !important; box-shadow: 0 0 20px #e74c3c; }
-            #result-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle, #2c3e50, #000); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:2000; }
-            .res-card { background:rgba(255,255,255,0.1); margin:10px; padding:20px 50px; border-radius:15px; display:flex; justify-content:space-between; width:600px; font-size:3rem; border-left:15px solid #fff;}
-            .rank1 { border-color:#f1c40f; background:rgba(241,196,15,0.2); transform:scale(1.2); margin-bottom:30px; }
-            .rank2 { border-color:#bdc3c7; }
-            .rank3 { border-color:#e67e22; }
+            #result-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle, #2c3e50, #000); display:none; padding:40px; box-sizing:border-box; z-index:2000; overflow-y:auto; flex-direction:column; align-items:center;}
+            .result-flex { display:flex; gap:40px; width:100%; max-width:1200px; justify-content:center; align-items:flex-start;}
+            .res-card { background:rgba(255,255,255,0.1); margin:10px 0; padding:15px 30px; border-radius:12px; display:flex; justify-content:space-between; font-size:1.8rem; border-left:10px solid #fff;}
+            .rank1 { border-color:#f1c40f; background:rgba(241,196,15,0.2); font-size:2.5rem; }
+            .history-box { flex:1; background:rgba(0,0,0,0.5); padding:20px; border-radius:15px; border:1px solid #444; max-height:70vh; overflow-y:auto;}
+            .hist-item { border-bottom:1px solid #333; padding:10px 0; font-size:0.9rem;}
+            .hist-ans { color:var(--gold); font-weight:bold; font-size:1.2rem; display:block; margin-top:5px;}
             #start-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:flex; justify-content:center; align-items:center; z-index:3000; cursor:pointer;}
         </style></head><body>
             <div id="start-overlay" onclick="this.style.display='none'"><h1>Click to Start (Sound ON)</h1></div>
             <div id="result-overlay">
-                <h1 style="font-size:5rem; color:#f1c40f; margin-bottom:40px; text-shadow:0 0 20px #f1c40f;">🏆 FINAL RESULT 🏆</h1>
-                <div id="res-list"></div>
+                <h1 style="font-size:3.5rem; color:#f1c40f; margin-bottom:30px; text-shadow:0 0 15px #f1c40f; text-align:center;">🏆 FINAL RESULT & HISTORY 🏆</h1>
+                <div class="result-flex">
+                    <div style="flex: 1; max-width:500px;">
+                        <h2 style="text-align:center; border-bottom:2px solid #fff; padding-bottom:10px;">RANKING</h2>
+                        <div id="res-list"></div>
+                    </div>
+                    <div class="history-box">
+                        <h2 style="text-align:center; border-bottom:2px solid #fff; padding-bottom:10px;">QUIZ HISTORY</h2>
+                        <div id="hist-list"></div>
+                    </div>
+                </div>
+                <button onclick="location.reload()" style="margin-top:30px; padding:10px 40px; cursor:pointer;">閉じる</button>
             </div>
             <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
             <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
@@ -369,14 +382,22 @@
                 window.reveal = (a,q) => { document.getElementById('ans').innerText=a; document.getElementById('ans').style.display='block'; document.getElementById('text').innerHTML=q; };
                 window.toggleRank = (v) => { document.getElementById('rank-side').style.opacity = v ? '1' : '0'; };
                 window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div class="rank-item"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
-                window.showResult = (list) => { 
+                window.showResult = (list, history) => { 
                     const over = document.getElementById('result-overlay');
                     if(over.style.display === 'flex') return;
                     over.style.display = 'flex';
-                    document.getElementById('res-list').innerHTML = list.slice(0,5).map(([n,v], i) => \`
+                    // ランキング表示
+                    document.getElementById('res-list').innerHTML = list.slice(0,10).map(([n,v], i) => \`
                         <div class="res-card rank\${i+1}">
                             <span>\${i+1}位 \${n}</span>
                             <span>\${v}pt</span>
+                        </div>\`).join('');
+                    // 履歴表示
+                    document.getElementById('hist-list').innerHTML = history.map((item, i) => \`
+                        <div class="hist-item">
+                            <small>第\${i+1}問</small><br>
+                            \${item.q}
+                            <span class="hist-ans">【正解】\${item.a}</span>
                         </div>\`).join('');
                 };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display = 'none'; };
@@ -398,4 +419,3 @@
 </script>
 </body>
 </html>
-
