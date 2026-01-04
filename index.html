@@ -248,7 +248,7 @@
             kana:/[\u30A0-\u30FF]/, 
             num:/[0-9０-９]/, 
             alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, 
-            sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/ 
+            sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ・☆★]/ 
         };
         let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
         if (count > 0) requestSound('type'); sync();
@@ -348,3 +348,4 @@
 </script>
 </body>
 </html>
+
