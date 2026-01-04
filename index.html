@@ -2,39 +2,30 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - The Perfect Final Master</title>
+    <title>QuizConsole Pro - The Perfect Version</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #f0f2f5; --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; --test: #6c5ce7; --gold: #f1c40f; }
+        :root { --bg: #f0f2f5; --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; --test: #6c5ce7; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; height: 100vh; overflow: hidden; box-sizing: border-box; }
         .page-section { display: none; height: 100%; } 
         #role-ui { display: block; }
         .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        
-        /* 管理画面レイアウト：サイドバー独立スクロール */
         .admin-flex { display: flex; gap: 15px; height: calc(100vh - 40px); max-width: 1600px; margin: 0 auto; }
         .main-panel { flex: 1; overflow-y: auto; padding-right: 5px; }
         .sidebar { width: 380px; display: flex; flex-direction: column; gap: 15px; height: 100%; }
         .sidebar-section { background: white; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; min-height: 0; border: 1px solid #ddd; }
-        
-        #player-mgr-area { height: 35%; flex-shrink: 0; }
         #full-mgr-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 5px; background: #fafafa; }
-        #quiz-search-area { flex: 1; }
-        #quiz-list-area { flex: 1; overflow-y: auto; margin-top: 10px; border: 1px solid #eee; border-radius: 8px; }
-
         #display { font-size: 1.8rem; background: var(--dark); color: white; padding: 20px; border-radius: 8px; min-height: 4em; display: flex; flex-wrap: wrap; margin-bottom: 15px; border: 4px solid #444; }
         #display span { border-bottom: 2px solid #555; margin-right: 2px; min-width: 0.8em; text-align: center; }
         #display span.hidden { visibility: hidden; }
-        
-        .btn-genre { padding: 6px; font-size: 0.7rem; cursor: pointer; flex: 1; border: 1px solid #ccc; background: #fff; border-radius: 4px; }
+        .btn-genre { padding: 6px; font-size: 0.7rem; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; }
         .btn-genre.active { background: var(--primary); color: white; }
-        .board-ans-item { background: #f8f9fa; border: 1px solid #ddd; padding: 8px; margin-top: 4px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #ccc; }
-        .mgr-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-        .type-btns button { padding: 8px 10px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: white; font-weight: bold; font-size: 0.8rem; }
-        
+        .mgr-item { display: flex; flex-direction: column; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; gap: 5px; }
         #remote-button { width: 180px; height: 180px; border-radius: 50%; font-size: 2rem; font-weight: bold; cursor: pointer; border: 8px solid #eee; }
         #remote-button:not(:disabled) { background: var(--danger); color: white; border-color: #c0392b; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: white; font-weight: bold; }
+        #player-gameover { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
     </style>
 </head>
 <body>
@@ -56,9 +47,9 @@
                     <button onclick="db.ref('isGameSet').set(true)" style="background:var(--dark); color:white; padding:10px; border-radius:8px; border:none; cursor:pointer;">🏁 ゲームセット</button>
                     <button onclick="resetAll()" style="background:var(--danger); color:white; padding:10px; border-radius:8px; border:none; cursor:pointer;">🚮 全消去</button>
                 </div>
-                
                 <div style="background:#fff3cd; padding:15px; border-radius:10px; text-align:center; border:2px solid #f1c40f; margin-bottom:15px;">
                     <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span id="status-label" class="status-badge" style="background:#777;">待機中</span>
                         <select id="gameMode" onchange="db.ref('mode').set(this.value)">
                             <option value="push">⚡ 早押し</option>
                             <option value="board">📝 ボード</option>
@@ -68,7 +59,10 @@
                         <button onclick="toggleRanking()" style="font-size:0.75rem;">🏆 表示切替</button>
                     </div>
                     <div id="activePlayer" style="font-size:2.2rem; font-weight:bold; color:var(--danger); min-height:1.2em;">待機中</div>
-                    <div id="boardResults" style="display:none; text-align:left; background:white; padding:8px; border-radius:8px; margin:10px 0; max-height:200px; overflow-y:auto; border:2px solid #ddd;"><div id="board-list-inner"></div></div>
+                    <div id="boardResults" style="display:none; text-align:left; background:white; padding:10px; border-radius:8px; margin:10px 0; max-height:250px; overflow-y:auto; border:2px solid #ddd;">
+                        <strong style="font-size:0.8rem; color:#666;">📝 回答リスト</strong>
+                        <div id="board-list-inner"></div>
+                    </div>
                     <div style="display:flex; gap:10px; margin-top:10px;">
                         <button style="flex:1; height:60px; background:var(--success); color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(true)">⭕</button>
                         <button style="flex:1; height:60px; background:var(--danger); color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(false)">❌</button>
@@ -78,35 +72,33 @@
                         <button onclick="revealAnswer()" style="flex:1; padding:10px; background:var(--test); color:white; border:none; border-radius:4px; font-weight:bold;">📢 答え公開</button>
                     </div>
                 </div>
-
-                <div class="type-btns" style="display:flex; flex-wrap:wrap; gap:4px; background:#e9ecef; padding:8px; border-radius:8px;">
+                <div style="display:flex; flex-wrap:wrap; gap:4px; background:#e9ecef; padding:8px; border-radius:8px; margin-bottom:10px;">
                     <button onclick="openType('kanji')">漢字</button><button onclick="openType('hira')">ひら</button><button onclick="openType('kana')">カナ</button>
                     <button onclick="openType('num')">数字</button><button onclick="openType('alp')">英字</button><button onclick="openType('sym')">記号</button>
                     <button onclick="openCircleOnly()">〇</button>
                     <button onclick="openAll()" style="background:#555; color:white; border:none; margin-left:auto;">全表示</button>
                 </div>
                 <div id="display"></div>
-                <div class="admin-info-box">
+                <div style="background:#eee; padding:10px; border-radius:8px;">
                     <strong>正解：</strong> <span id="admin-a-full" style="color:var(--danger); font-weight:bold;">-</span><br>
                     <strong>全文：</strong> <span id="admin-q-full" style="font-size:0.9rem;">-</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px; margin-top:10px; background:#eee; padding:10px; border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px; background:#ddd; padding:10px; border-radius:8px;">
                     <span>速度:</span> <input type="range" id="readSpeed" min="50" max="1000" value="150" step="10">
                     <button onclick="startQuiz()" style="flex:1; padding:12px; background:var(--primary); color:white; border:none; border-radius:5px; font-weight:bold;">自動読上開始</button>
                 </div>
             </div>
         </div>
-
         <div class="sidebar">
-            <div id="player-mgr-area" class="sidebar-section">
+            <div class="sidebar-section" style="height:40%">
                 <h3 style="margin:0; font-size:1rem; color:var(--primary);">👤 プレイヤー管理</h3>
                 <div id="full-mgr-list"></div>
             </div>
-            <div id="quiz-search-area" class="sidebar-section">
+            <div class="sidebar-section" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                 <h3 style="margin:0; font-size:1rem; color:var(--primary);">📚 問題検索</h3>
                 <div id="genre-tabs" style="display:flex; flex-wrap:wrap; gap:2px; margin:5px 0;"></div>
-                <input type="text" id="search" placeholder="キーワード検索..." style="width:100%; padding:8px; box-sizing:border-box;" oninput="renderList()">
-                <div id="quiz-list-area"></div>
+                <input type="text" id="search" placeholder="キーワード検索..." style="width:100%; padding:8px; box-sizing:border-box; margin-bottom:5px;" oninput="renderList()">
+                <div id="quiz-list-area" style="flex: 1; overflow-y: auto; border: 1px solid #eee; background: #fff; padding: 5px;"></div>
             </div>
         </div>
     </div>
@@ -116,33 +108,29 @@
     <div class="container" style="max-width: 500px; margin: 20px auto; text-align: center;">
         <div style="font-size:2.5rem; font-weight:bold;">Score: <span id="p-score">0</span></div>
         <div id="player-status-area" style="margin:15px; min-height:40px; font-weight:bold; color:var(--danger);"></div>
-        <input type="text" id="p-name" placeholder="名前を入力" style="width:85%; padding:15px; font-size:1.3rem; border-radius:10px; border:3px solid #ddd; margin-bottom:20px; text-align:center;">
-        <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#eaffea; padding:20px; border-radius:15px; border:2px solid var(--success);">
-            <input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);"><br><br>
-            <button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button>
+        <div id="name-input-area">
+            <input type="text" id="p-name" placeholder="名前を入力" style="width:85%; padding:15px; font-size:1.3rem; border-radius:10px; border:3px solid #ddd; margin-bottom:10px; text-align:center;">
+            <button id="p-lock-btn" onclick="lockName()" style="width:85%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold;">参加する</button>
         </div>
+        <div id="locked-name-display" style="display:none; font-size:1.5rem; margin-bottom:20px; color:#555;">参加者: <strong id="current-player-name"></strong></div>
+        <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#eaffea; padding:20px; border-radius:15px; border:2px solid var(--success);"><input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);"><br><br><button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button></div>
         <button id="remote-button" onclick="pushBtn()">PUSH!</button>
     </div>
-    <div id="player-gameover" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;"><h1>GAME SET!</h1><p>リザルト発表中...</p></div>
+    <div id="player-gameover">
+        <h1 style="color:#f1c40f; font-size:3rem;">🏁 GAME SET! 🏁</h1>
+        <div style="font-size:2rem; margin:20px;">あなたのスコア: <span id="final-p-score" style="font-weight:bold; font-size:3rem;">0</span> pt</div>
+        <div id="final-rank-text" style="font-size:1.5rem; color:#bbb;">順位計算中...</div>
+        <button onclick="location.reload()" style="margin-top:30px; padding:10px 20px;">トップに戻る</button>
+    </div>
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "dummy",
-        authDomain: "realtime-database-c0015.firebaseapp.com",
-        databaseURL: "https://realtime-database-c0015-default-rtdb.firebaseio.com",
-        projectId: "realtime-database-c0015",
-        storageBucket: "realtime-database-c0015.appspot.com",
-        messagingSenderId: "000000000000",
-        appId: "1:000000000000:web:dummy"
-    };
-
+    const firebaseConfig = { databaseURL: "https://realtime-database-c0015-default-rtdb.firebaseio.com/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     
     let masterData = { all: [] }, activeGenre = 'all', usedSet = new Set(), currentQuiz = { q: "", a: "" }, revealed = [], history = [];
-    let timer = null, subWindow = null, lastStatus = "";
+    let timer = null, subWindow = null, lastStatus = "", isPlayerLocked = false;
 
     const URLS = {
         ori: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFuFjp8CnBMqfdRPKbQ_FPC6zWwgdQBVdTDsdWTHbBN92vXADxbVTmHdLm_C3Yn-Eeu5ZWm9WXRb0c/pub?output=csv",
@@ -153,26 +141,23 @@
         sport: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJYls3O8_98SKNWqx34c0V5HLIaXdxxA8v4E3c1iwrTFZBL1TSxzeem9AbKZKYfMkQEcu7bECcsgVo/pub?output=csv"
     };
 
-    function requestSound(s) { if(subWindow && !subWindow.closed) subWindow.play(s); }
-    function reportTyping(val) { const name = document.getElementById('p-name').value.trim(); if(name) db.ref('typing/'+name).set(val.length > 0); }
-
-    function switchPage(role) {
-        document.querySelectorAll('.page-section').forEach(el => el.style.display = 'none');
-        document.getElementById(role + '-ui').style.display = 'block';
-        role === 'admin' ? initAdmin() : initPlayer();
-    }
+    const hEsc = (s) => { const e = document.createElement('div'); e.textContent = s; return e.innerHTML; };
+    const safeName = (n) => n.replace(/[.#$/[\]]/g, "_");
+    function requestSound(s) { if(subWindow && !subWindow.closed && subWindow.play) subWindow.play(s); }
+    function switchPage(role) { document.querySelectorAll('.page-section').forEach(el => el.style.display = 'none'); document.getElementById(role + '-ui').style.display = 'block'; role === 'admin' ? initAdmin() : initPlayer(); }
 
     async function initAdmin() {
+        db.ref('usedSet').on('value', s => { usedSet = new Set(s.val() || []); renderList(); });
         const tabs = document.getElementById('genre-tabs');
-        tabs.innerHTML = '<button class="btn-genre active" onclick="setGenre(\'all\')">全</button>' + 
-            Object.keys(URLS).map(k => `<button class="btn-genre" onclick="setGenre('${k}')">${k}</button>`).join('');
+        tabs.innerHTML = '<button class="btn-genre active" onclick="setGenre(\'all\')">全</button>' + Object.keys(URLS).map(k => `<button class="btn-genre" onclick="setGenre('${k}')">${k}</button>`).join('');
         for (let [k, url] of Object.entries(URLS)) {
             try {
                 const res = await fetch(url + "&t=" + Date.now());
                 const text = await res.text();
-                const data = text.split('\n').slice(1).map(l => {
-                    const p = l.split(',');
-                    return (p[0] && p[1]) ? { q: p[0].trim(), a: p[1].trim() } : null;
+                const data = text.split(/\r?\n/).slice(1).map(l => {
+                    const m = l.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                    if (m && m.length >= 2) return { q: m[0].replace(/^"|"$/g, '').trim(), a: m[1].replace(/^"|"$/g, '').trim() };
+                    return null;
                 }).filter(v => v);
                 masterData[k] = data; masterData.all = masterData.all.concat(data);
             } catch(e) {}
@@ -180,115 +165,105 @@
         renderList();
         db.ref().on('value', snap => {
             const d = snap.val() || {};
+            const scoreEntries = Object.entries(d.scores || {}).sort((a,b)=>b[1]-a[1]);
+            document.getElementById('full-mgr-list').innerHTML = scoreEntries.map(([n,v]) => {
+                const w = d.waits?.[n] || 0;
+                return `<div class="mgr-item"><div style="display:flex;justify-content:space-between"><span><b>${hEsc(n)}</b>: ${v}pt</span><button onclick="removePlayer('${n}')">🗑️</button></div><div><button onclick="modifyScore('${n}',1)">+</button><button onclick="modifyScore('${n}',-1)">-</button> <span style="color:red">休${w}</span><button onclick="modifyWait('${n}',1)">+</button><button onclick="modifyWait('${n}',-1)">-</button></div></div>`;
+            }).join('');
+            const statusLabel = document.getElementById('status-label');
+            if(d.status === 'active') { statusLabel.innerText = "🟢 受付中"; statusLabel.style.background = "var(--success)"; }
+            else if(d.status === 'pushed') { statusLabel.innerText = "🔴 解答待ち"; statusLabel.style.background = "var(--danger)"; }
+            else { statusLabel.innerText = "⚪ 待機中"; statusLabel.style.background = "#777"; }
             document.getElementById('activePlayer').innerText = d.winner ? "🎤 " + d.winner : (d.mode === 'all_board' && d.status !== 'waiting' ? "🖊 全員解答中" : "待機中");
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
-            const scores = d.scores || {}, waits = d.waits || {};
-            const scoreEntries = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-            document.getElementById('full-mgr-list').innerHTML = scoreEntries.map(([n,v]) => `<div class="mgr-item"><span><b>${n}</b>: ${v}pt</span><div><button onclick="modifyScore('${n}',1)">+</button><span style="color:red;margin:0 5px;">休${waits[n]||0}</span> <button onclick="modifyWait('${n}',1)">+</button><button onclick="modifyWait('${n}',-1)">-</button></div></div>`).join('');
             const bArea = document.getElementById('boardResults');
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
                 bArea.style.display = 'block';
-                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `<div class="board-ans-item" style="border-left-color:${d.correctList?.[n]?'var(--success)':(d.wrongList?.[n]?'var(--danger)':'#ccc')}"><span><strong>${n}:</strong> ${ans}</span><div><button onclick="judge(true, '${n}')">〇</button><button onclick="judge(false, '${n}')">×</button></div></div>`).join('');
+                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}"><span>${hEsc(n)}: ${hEsc(ans)}</span><div><button onclick="judge(true, '${n}')">〇</button><button onclick="judge(false, '${n}')">×</button></div></div>`).join('');
             } else bArea.style.display = 'none';
-            if(subWindow) {
-                subWindow.syncBoard(d); subWindow.toggleRank(d.rankVisible !== false); subWindow.updateRank(scoreEntries);
-                if(d.isGameSet) subWindow.showResult(scoreEntries, history); else subWindow.hideResult();
-            }
+            if(subWindow) { subWindow.syncBoard(d); subWindow.toggleRank(d.rankVisible !== false); subWindow.updateRank(scoreEntries); if(d.isGameSet) subWindow.showResult(scoreEntries, history); else subWindow.hideResult(); }
         });
     }
 
-    function modifyScore(n, v) { db.ref('scores/'+n).transaction(s => (s||0)+v); }
-    function modifyWait(n, v) { db.ref('waits/'+n).transaction(w => Math.max(0, (w||0)+v)); }
+    function removePlayer(n) { if(confirm(`${n} を削除？`)) { const sn = safeName(n); db.ref('scores/'+sn).remove(); db.ref('waits/'+sn).remove(); db.ref('boardAnswers/'+sn).remove(); db.ref('typing/'+sn).remove(); db.ref('correctList/'+sn).remove(); db.ref('wrongList/'+sn).remove(); } }
+    function modifyScore(n, v) { db.ref('scores/'+safeName(n)).transaction(s => (s||0)+v); }
+    function modifyWait(n, v) { db.ref('waits/'+safeName(n)).transaction(w => Math.max(0, (w||0)+v)); }
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
     function setGenre(g) { activeGenre = g; renderList(); }
     function renderList() {
         const s = document.getElementById('search').value.toLowerCase();
+        const area = document.getElementById('quiz-list-area');
         let list = masterData[activeGenre] || [];
         if(s) list = list.filter(i => i.q.includes(s) || i.a.includes(s));
-        else list = [...list].sort(() => Math.random() - 0.5).slice(0, 30);
-        document.getElementById('quiz-list-area').innerHTML = list.map(i => `<div class="quiz-item" onclick="applyQuiz('${i.q.replace(/'/g,"\\'")}', '${i.a.replace(/'/g,"\\'")}')" style="${usedSet.has(i.q)?'opacity:0.3; padding:10px; border-bottom:1px solid #eee;':'padding:10px; border-bottom:1px solid #eee; cursor:pointer;'}"><strong>${i.a}</strong><br><small>${i.q}</small></div>`).join('');
+        else list = [...list].sort(() => Math.random() - 0.5).slice(0, 50);
+        area.innerHTML = list.map(i => `<div class="quiz-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="padding:10px; border-bottom:1px solid #eee; ${usedSet.has(i.q)?'opacity:0.3;':'cursor:pointer;'}"><strong>${hEsc(i.a)}</strong><br><small style="color:#666;">${hEsc(i.q)}</small></div>`).join('');
+        area.scrollTop = 0;
     }
-
-    function applyQuiz(q, a) {
-        clearInterval(timer); currentQuiz = { q, a }; revealed = []; usedSet.add(q); history.push({q, a});
-        document.getElementById('admin-q-full').innerText = q; document.getElementById('admin-a-full').innerText = a;
-        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, isGameSet: false });
-        if(subWindow) subWindow.resetForNext(); sync(true); renderList();
-    }
-
-    function startQuiz() {
-        db.ref('status').set('active');
-        const speed = parseInt(document.getElementById('readSpeed').value);
-        clearInterval(timer);
-        timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed);
-    }
-
-    function sync(forceHideSub = false) {
-        const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${c}</span>` : `<span class="hidden">${c}</span>`).join('');
-        document.getElementById('display').innerHTML = h;
-        if(subWindow && !forceHideSub) subWindow.document.getElementById('text').innerHTML = h;
-    }
-
+    function applyQuiz(q, a) { clearInterval(timer); currentQuiz = { q, a }; revealed = []; usedSet.add(q); db.ref('usedSet').set([...usedSet]); history.push({q, a}); document.getElementById('admin-q-full').innerText = q; document.getElementById('admin-a-full').innerText = a; db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, isGameSet: false }); if(subWindow) subWindow.resetForNext(); sync(true); renderList(); }
+    function startQuiz() { db.ref('status').set('active'); const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed); }
+    function sync(forceHideSub = false) { const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${hEsc(c)}</span>` : `<span class="hidden">${hEsc(c)}</span>`).join(''); document.getElementById('display').innerHTML = h; if(subWindow && !forceHideSub) subWindow.document.getElementById('text').innerHTML = h; }
+    
     function openType(t) {
         db.ref('status').set('active');
         const m = { 
-            kanji:/[\u4E00-\u9FFF]/, 
-            hira:/[\u3040-\u309F]/, 
-            kana:/[\u30A0-\u30FF]/, 
-            num:/[0-9０-９]/, 
-            alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, 
-            sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/ 
+            kanji:/[\u4E00-\u9FFF]/, hira:/[\u3040-\u309F]/, kana:/[\u30A0-\u30FF]/, num:/[0-9０-９]/, alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, 
+            sym:/[！・？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ★☆]/ 
         };
         let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
         if (count > 0) requestSound('type'); sync();
     }
-    function openCircleOnly() { Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) revealed.push(i); }); sync(); }
+    function openCircleOnly() { let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) { revealed.push(i); count++; } }); if(count > 0) requestSound('type'); sync(); }
     function openAll() { revealed = Array.from(currentQuiz.q).map((_, i) => i); sync(); }
 
     function judge(isOK, targetPlayer = null) {
+        requestSound(isOK ? 'correct' : 'wrong');
         db.ref().once('value', snap => {
-            const d = snap.val(), p = targetPlayer || d.winner; if(!p) return;
+            const d = snap.val();
+            const p = targetPlayer || d.winner;
+            if(!p) return;
+            const sn = safeName(p);
             const pt = parseInt(document.getElementById('currentPoint').value) || 1;
-            if(isOK) { requestSound('correct'); db.ref('scores/'+p).transaction(s => (s||0)+pt); db.ref('correctList/'+p).set(true); }
-            else { requestSound('wrong'); db.ref('scores/'+p).transaction(s => (s||0)-1); db.ref('waits/'+p).set(2); db.ref('wrongList/'+p).set(true); }
+            if(isOK) { db.ref('scores/'+sn).transaction(s => (s||0)+pt); db.ref('correctList/'+sn).set(true); }
+            else { db.ref('scores/'+sn).transaction(s => (s||0)-1); db.ref('waits/'+sn).set(2); db.ref('wrongList/'+sn).set(true); }
             if(d.mode !== 'all_board') db.ref().update({ winner: "", status: "active" });
         });
     }
 
     function resumeQuiz() { db.ref('status').set('active'); if(revealed.length < currentQuiz.q.length) startQuiz(); }
     function revealAnswer() { db.ref('finalReveal').set(true); if(subWindow) subWindow.reveal(currentQuiz.a, currentQuiz.q); }
-    function resetAll() { if (confirm("全リセットしますか？")) { history = []; db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false }); } }
+    function resetAll() { if (confirm("完全リセット？")) { history = []; usedSet.clear(); db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [] }); renderList(); } }
 
-    function initPlayer() {
-        const ni = document.getElementById('p-name'), bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'), goS = document.getElementById('player-gameover');
-        db.ref().on('value', snap => {
-            const d = snap.val() || {}; const name = ni.value.trim();
-            const w = (d.waits && d.waits[name]) || 0;
-            const isCorrected = d.correctList && d.correctList[name];
-            document.getElementById('p-score').innerText = d.scores?.[name] || 0;
-            if(d.isGameSet) { goS.style.display = 'flex'; return; } else goS.style.display = 'none';
-            const isWinner = (d.winner === name && name !== "");
-            const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board'));
-            bUI.style.display = showBoard ? 'block' : 'none';
-            if(isCorrected) sArea.innerHTML = "✅ 正解済み！";
-            else if(isWinner) sArea.innerHTML = "🎤 解答権あり！";
-            else if(w > 0) sArea.innerHTML = "❌ お休み中 (" + w + ")";
-            else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中";
-            // ★ボタン無効化条件に「d.mode !== 'all_board'」を追加
-            document.getElementById('remote-button').disabled = !(name && w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board');
-        });
+    function lockName() { const n = document.getElementById('p-name').value.trim(); if(!n) return alert("名前！"); isPlayerLocked = true; document.getElementById('p-name').disabled = true; document.getElementById('p-lock-btn').style.display = 'none'; document.getElementById('locked-name-display').style.display = 'block'; document.getElementById('current-player-name').innerText = n; }
+    function initPlayer() { 
+        const bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'), goS = document.getElementById('player-gameover'); 
+        db.ref().on('value', snap => { 
+            if(!isPlayerLocked) return; 
+            const d = snap.val() || {}; const name = document.getElementById('p-name').value.trim(); const sn = safeName(name); const score = d.scores?.[sn] || 0; 
+            document.getElementById('p-score').innerText = score; 
+            if(d.isGameSet) { 
+                goS.style.display = 'flex'; document.getElementById('final-p-score').innerText = score; 
+                const scoreEntries = Object.entries(d.scores || {}).sort((a,b)=>b[1]-a[1]); 
+                const rank = scoreEntries.findIndex(e => e[0] === sn) + 1; 
+                document.getElementById('final-rank-text').innerText = `あなたは ${scoreEntries.length} 人中 ${rank} 位です！`; 
+            } else { goS.style.display = 'none'; } 
+            const w = (d.waits && d.waits[sn]) || 0; const isCorrected = d.correctList && d.correctList[sn]; const isWinner = (d.winner === name); 
+            const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board')); 
+            bUI.style.display = showBoard ? 'block' : 'none'; 
+            if(isCorrected) sArea.innerHTML = "✅ 正解！"; else if(isWinner) sArea.innerHTML = "🎤 解答権！"; else if(w > 0) sArea.innerHTML = "❌ お休み (" + w + ")"; else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中"; 
+            document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
+        }); 
     }
-
-    function sendBoardAns() { const name = document.getElementById('p-name').value.trim(), t = document.getElementById('board-text').value.trim(); if(t) { db.ref('boardAnswers/'+name).set(t); db.ref('typing/'+name).set(false); document.getElementById('board-text').value=""; } }
-    function pushBtn() { const name = document.getElementById('p-name').value.trim(); if(!name) return alert("名前を入力！"); db.ref('winner').transaction(c => c ? undefined : name, (err, ok) => { if(ok) db.ref('status').set('pushed'); }); }
+    function reportTyping(val) { const name = safeName(document.getElementById('p-name').value.trim()); if(isPlayerLocked) db.ref('typing/'+name).set(val.length > 0); }
+    function sendBoardAns() { const name = safeName(document.getElementById('p-name').value.trim()), t = document.getElementById('board-text').value.trim(); if(name && t) { db.ref('boardAnswers/'+name).set(t); db.ref('typing/'+name).set(false); document.getElementById('board-text').value=""; } }
+    function pushBtn() { const name = document.getElementById('p-name').value.trim(); if(!isPlayerLocked) return; db.ref('winner').transaction(c => c ? undefined : name, (err, ok) => { if(ok) db.ref('status').set('pushed'); }); }
 
     function openSubWindow() {
         subWindow = window.open("", "QuizSub", "width=1200,height=800");
         subWindow.document.write(`<html><head><style>
             body{background:#000;color:#fff;font-family:sans-serif;margin:0;overflow:hidden;display:flex;}
             #main-container{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;}
-            #rank-side{width:280px;background:#111;border-left:3px solid #333;padding:20px;transition:0.5s;}
+            #rank-side{width:280px;background:#111;border-left:3px solid #333;padding:20px;}
             #text{font-size:3.5rem;text-align:center;font-weight:bold;line-height:1.3;}
             #text span.hidden{visibility:hidden;}
             #ans{display:none;font-size:4.5rem;color:#f1c40f;border:10px solid #f1c40f;padding:20px;margin-top:25px;border-radius:20px;font-weight:bold;}
@@ -297,20 +272,19 @@
             .board-box.correct { border-color: #2ecc71; background: #041; }
             .board-box.wrong { border-color: #e74c3c; background: #400; }
             #result-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle, #2c3e50, #000); display:none; padding:40px; z-index:2000; overflow-y:auto; flex-direction:column; align-items:center;}
-            .res-card { background:rgba(255,255,255,0.1); margin:10px 0; padding:15px 30px; border-radius:12px; display:flex; justify-content:space-between; width:500px; font-size:2rem; border-left:12px solid #fff;}
-            .history-box { flex:1; background:rgba(0,0,0,0.5); padding:25px; border-radius:20px; max-height:75vh; overflow-y:auto; border:1px solid #444;}
             @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         </style></head><body>
-            <div id="result-overlay"><h1 style="color:#f1c40f; font-size:4rem;">🏆 FINAL RESULT 🏆</h1><div style="display:flex; gap:40px; width:100%; max-width:1300px; justify-content:center; align-items:flex-start;"><div id="res-list" style="flex:1;"></div><div class="history-box"><h2 style="border-bottom:2px solid #fff;padding-bottom:10px;">QUIZ LOG</h2><div id="hist-list"></div></div></div></div>
+            <div id="result-overlay"><h1 style="color:#f1c40f; font-size:4rem; margin-bottom:10px;">🏆 FINAL RESULT 🏆</h1><div style="display:flex; gap:40px; width:100%; max-width:1300px;"><div id="res-list" style="flex:1;"></div><div id="hist-list" style="flex:1;background:rgba(0,0,0,0.5);padding:20px;border-radius:20px;max-height:70vh;overflow-y:auto;"><h3 style="border-bottom:2px solid #555;padding-bottom:10px;">出題履歴</h3><div id="hist-inner"></div></div></div></div>
             <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
             <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
             <script>
                 const sounds = { push: new Audio('sounds/push.mp3'), correct: new Audio('sounds/correct.mp3'), wrong: new Audio('sounds/wrong.mp3'), type: new Audio('sounds/type.mp3') };
-                window.play = (s) => { if(sounds[s]) { sounds[s].currentTime=0; sounds[s].play().catch(e=>0); } };
+                Object.values(sounds).forEach(s => s.load());
+                window.play = (s) => { if(sounds[s]) { sounds[s].pause(); sounds[s].currentTime = 0; sounds[s].play().catch(e => 0); } };
                 window.reveal = (a,q) => { document.getElementById('ans').innerText=a; document.getElementById('ans').style.display='block'; document.getElementById('text').innerHTML=q; };
                 window.toggleRank = (v) => { document.getElementById('rank-side').style.opacity = v ? '1' : '0'; };
                 window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div style="display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
-                window.showResult = (list, hist) => { const over = document.getElementById('result-overlay'); if(over.style.display === 'flex') return; over.style.display='flex'; document.getElementById('res-list').innerHTML = list.slice(0,10).map(([n,v],i) => '<div class="res-card" style="border-left-color:'+(i===0?'#f1c40f':(i===1?'#bdc3c7':'#e67e22'))+'"><span>'+(i+1)+'位 '+n+'</span><span>'+v+'pt</span></div>').join(''); document.getElementById('hist-list').innerHTML = hist.map((item,i) => '<div style="margin-bottom:15px;font-size:1rem;border-bottom:1px solid #333;padding-bottom:10px;">第'+(i+1)+'問: '+item.q+'<br><b style="color:#f1c40f;font-size:1.3rem;">正解: '+item.a+'</b></div>').join(''); };
+                window.showResult = (list, hist) => { document.getElementById('result-overlay').style.display='flex'; document.getElementById('res-list').innerHTML = list.map(([n,v],i) => '<div style="font-size:2rem;margin:10px;padding:15px;background:rgba(255,255,255,0.1);border-radius:10px;border-left:10px solid '+(i===0?'#f1c40f':(i===1?'#bdc3c7':'#cd7f32'))+'">'+(i+1)+'位 '+n+': '+v+'pt</div>').join(''); document.getElementById('hist-inner').innerHTML = hist.map(item => '<div style="margin-bottom:15px;border-bottom:1px solid #444;font-size:0.9rem;">'+item.q+'<br><b style="color:#f1c40f;font-size:1.2rem;">正解: '+item.a+'</b></div>').join(''); };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display='none'; };
                 window.syncBoard = (d) => {
                     const area = document.getElementById('board-area');
@@ -325,9 +299,11 @@
                     }).join('');
                 };
                 window.resetForNext = () => { document.getElementById('ans').style.display='none'; document.getElementById('board-area').innerHTML=''; document.getElementById('text').innerHTML=''; };
+                document.body.addEventListener('click', () => { Object.values(sounds).forEach(s => { s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => 0); }); }, { once: true });
             <\/script></body></html>`);
     }
 </script>
 </body>
 </html>
+
 
