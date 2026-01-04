@@ -267,11 +267,22 @@
     function openType(t) {
         db.ref('status').set('active');
         const m = { 
-            kanji:/[\u4E00-\u9FFF]/, hira:/[\u3040-\u309F]/, kana:/[\u30A0-\u30FF]/, num:/[0-9]/, alp:/[a-z]/i, 
+            kanji:/[\u4E00-\u9FFF]/, 
+            hira:/[\u3040-\u309F]/, 
+            kana:/[\u30A0-\u30FF]/, 
+            num:/[0-9０-９]/, // 半角・全角の両方に対応
+            alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, // 半角・全角の両方に対応
             sym:/[！？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/ 
         };
-        let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
-        if (count > 0) requestSound('type'); sync();
+        let count = 0; 
+        Array.from(currentQuiz.q).forEach((c, i) => { 
+            if (m[t] && m[t].test(c) && !revealed.includes(i)) { 
+                revealed.push(i); 
+                count++; 
+            } 
+        });
+        if (count > 0) requestSound('type'); 
+        sync();
     }
     function openCircleOnly() { db.ref('status').set('active'); Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) revealed.push(i); }); sync(); }
     function openAll() { db.ref('status').set('active'); revealed = Array.from(currentQuiz.q).map((_, i) => i); sync(); }
@@ -360,3 +371,4 @@
 </script>
 </body>
 </html>
+
