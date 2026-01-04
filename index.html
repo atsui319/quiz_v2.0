@@ -290,9 +290,15 @@
             else if(w > 0) sArea.innerHTML = "❌ お休み中 (" + w + ")";
             else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中";
 
-            // ★ボタン無効化条件に「正解済み(isCorrected)」を追加
-            document.getElementById('remote-button').disabled = !(name && w === 0 && d.status === 'active' && !d.winner && !isCorrected);
-        });
+            // ★ボタン無効化条件に「d.mode !== 'all_board'」を追加
+document.getElementById('remote-button').disabled = !(
+    name && 
+    w === 0 && 
+    d.status === 'active' && 
+    !d.winner && 
+    !isCorrected && 
+    d.mode !== 'all_board'  // 全員ボード時はボタンを無効化
+);
     }
 
     function sendBoardAns() { const name = document.getElementById('p-name').value.trim(), t = document.getElementById('board-text').value.trim(); if(t) { db.ref('boardAnswers/'+name).set(t); db.ref('typing/'+name).set(false); document.getElementById('board-text').value=""; } }
@@ -355,5 +361,6 @@
 </script>
 </body>
 </html>
+
 
 
