@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Final Fixed v2</title>
+    <title>QuizConsole Pro - Debugged Final</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -30,7 +30,7 @@
         #admin-a-full { color: #ff4d4d !important; font-weight: bold; font-size: 1.1rem; }
         .quiz-item { background: #0d1117; color: #e5e7eb; padding: 10px; border-bottom: 1px solid #222; }
         .quiz-item:hover { background: #1f2937; cursor: pointer; }
-        .board-ans-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #333; }
+        .board-ans-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #333; background: rgba(255,255,255,0.02); margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -120,7 +120,11 @@
                 <button id="p-lock-btn" onclick="lockName()" style="width:85%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold;">参加する</button>
             </div>
             <div id="locked-name-display" style="display:none; font-size:1.5rem; margin-bottom:20px; color:#bbb;">参加者: <strong id="current-player-name"></strong></div>
-            <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#064e3b; padding:20px; border-radius:15px; border:2px solid var(--success);"><input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);"><br><br><button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button></div>
+            <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#064e3b; padding:20px; border-radius:15px; border:2px solid var(--success);">
+                <input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);">
+                <br><br>
+                <button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button>
+            </div>
             <button id="remote-button" onclick="pushBtn()">PUSH!</button>
         </div>
         <div id="player-gameset-ui" style="display:none; padding:50px 0;">
@@ -145,7 +149,7 @@
         anime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTBRf9k4zS7Ht5s7GKejqT2d-cyWbDHd19DwTPmAzoHe40d9nV1cVu-RH565sIq9GbYmEKkzhpBytp/pub?output=csv",
         social: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXVYOqHu_0VRIkiVK0RQO-ZWPZ6pHGqIw5VxBWdOlg3-HbP3q26gM0fVxTndREhjqbaxFzcjeuoMcE/pub?output=csv",
         life: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTr7JL0lBCMLRBFi-CraPlJxzp4xrGD8RSnc8MSuoV3ORISo0iCFWMmI_FCtDlgkxwPqmv_TwAvufn/pub?output=csv",
-        sport: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJYls3O8_98SKNWqx34c0V5HLIaXdxxA8v4E3c1iwrTFZBL1TSxzeem9AbKZKYfMkQEcu7bECcsgVo/pub?output=csv",
+        sport: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJYls3O8_98SKNWqx34c0V5HLIaXdxxA8v4E3c1iwrTFZBL1TSzeem9AbKZKYfMkQEcu7bECcsgVo/pub?output=csv",
         humanities: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTTUKra8YsSzkZHvm7QRzKeUT6KBi90JHU99B8AK2YiFd2hpxPfKQNCcrUiBVn6BTyPUWqNwJEUVsgD/pub?output=csv"
     };
 
@@ -193,17 +197,16 @@
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers && Object.keys(d.boardAnswers).length > 0) {
                 bArea.style.display = 'block';
                 document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => 
-                    `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}">
-                        <span>${hEsc(n)}: ${hEsc(ans)}</span>
-                        <div>
-                            <button onclick="revealBoard('${n}')" title="この人のボードを開く">👁</button>
-                            <button onclick="judge(true, '${n}')">⭕</button>
-                            <button onclick="judge(false, '${n}')">❌</button>
+                    `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'#2ecc71':(d.wrongList?.[n]?'#ff5c5c':'#444')}">
+                        <span style="flex:1;"><b>${hEsc(n)}</b>: ${hEsc(ans)}</span>
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="revealBoard('${n}')" style="background:#555; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">👁</button>
+                            <button onclick="judge(true, '${n}')" style="background:#166534; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">⭕</button>
+                            <button onclick="judge(false, '${n}')" style="background:#7f1d1d; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">❌</button>
                         </div>
                     </div>`).join('');
             } else {
                 bArea.style.display = 'none';
-                document.getElementById('board-list-inner').innerHTML = "";
             }
 
             if(subWindow) { 
@@ -231,7 +234,6 @@
         area.scrollTop = 0;
     }
 
-    // 問題セット時の処理（最重要修正ポイント）
     function applyQuiz(q, a) { 
         clearInterval(timer); 
         currentQuiz = { q, a }; 
@@ -242,14 +244,14 @@
         document.getElementById('admin-q-full').innerText = q; 
         document.getElementById('admin-a-full').innerText = a; 
         
-        // Firebaseの各ノードを個別に空にする（物理削除）
+        // Firebaseの各ノードを物理削除
         db.ref('boardAnswers').set(null); 
         db.ref('openBoards').set(null);
         db.ref('typing').set(null);
         db.ref('correctList').set(null);
         db.ref('wrongList').set(null);
 
-        // 全体の状態をリセット
+        // 基本状態をリセット
         db.ref().update({ 
             status: "waiting", 
             winner: "", 
@@ -326,8 +328,11 @@
             const w = (d.waits && d.waits[sn]) || 0; 
             const isCorrected = d.correctList && d.correctList[sn]; 
             const isWinner = (d.winner === name); 
+            
+            // ボード入力欄の表示条件: モードがボード系かつ、ステータスが待機中でないとき
             const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board')); 
             bUI.style.display = showBoard ? 'block' : 'none'; 
+
             if(isCorrected) sArea.innerHTML = "✅ 正解！"; else if(isWinner) sArea.innerHTML = "🎤 解答権！"; else if(w > 0) sArea.innerHTML = "❌ お休み (" + w + ")"; else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中"; 
             document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
         }); 
@@ -366,11 +371,11 @@
                 window.hideResult = () => { document.getElementById('result-overlay').style.display='none'; };
                 window.syncBoard = (d) => {
                     const area = document.getElementById('board-area');
-                    // 解答がある、またはタイピング中のプレイヤーを抽出
                     const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
                     area.innerHTML = players.map(n => {
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
                         const isCorrect = d.correctList?.[n], isWrong = d.wrongList?.[n];
+                        // 視聴者画面の表示フラグ
                         const isOpen = d.revealAllBoards || (d.openBoards && d.openBoards[n.replace(/[.#$/[\\\]]/g, \"_\")]) || isWrong;
                         let content = isOpen ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
                         if(!content && !isTyping) return \"\";
