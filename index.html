@@ -26,6 +26,124 @@
         #remote-button:not(:disabled) { background: var(--danger); color: white; border-color: #c0392b; }
         .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: white; font-weight: bold; }
         #player-gameover { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); color: white; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+    /* =========================
+   🌙 Dark Mode Theme Patch
+   ========================= */
+
+:root {
+    --bg: #0f1115;
+    --primary: #4aa3ff;
+    --danger: #ff5c5c;
+    --success: #2ecc71;
+    --dark: #000000;
+    --test: #8e7dff;
+}
+
+/* 全体背景 */
+body {
+    background: var(--bg);
+    color: #e5e7eb;
+}
+
+/* 共通カード */
+.container,
+.sidebar-section {
+    background: #161a22;
+    color: #e5e7eb;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    border: 1px solid #2a2f3a;
+}
+
+/* 管理画面 左右構成 */
+.admin-flex {
+    background: var(--bg);
+}
+
+/* 問題表示 */
+#display {
+    background: #000;
+    border: 4px solid #222;
+    color: #fff;
+}
+
+#display span {
+    border-bottom: 2px solid #333;
+}
+
+/* サイドバーリスト */
+#full-mgr-list,
+#quiz-list-area {
+    background: #0d1117;
+    border: 1px solid #222;
+}
+
+/* 問題リスト項目 */
+.quiz-item {
+    background: #0d1117;
+    color: #e5e7eb;
+}
+.quiz-item:hover {
+    background: #1f2937;
+}
+
+/* ボタン共通 */
+button {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #333;
+}
+button:hover {
+    background: #2b3548;
+}
+
+/* ジャンルボタン */
+.btn-genre {
+    background: #111827;
+    color: #d1d5db;
+    border: 1px solid #333;
+}
+.btn-genre.active {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* ステータス枠 */
+.status-badge {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+}
+
+/* 入力欄 */
+input, select {
+    background: #0d1117;
+    color: #e5e7eb;
+    border: 1px solid #333;
+}
+input::placeholder {
+    color: #6b7280;
+}
+
+/* 回答者画面 */
+#player-ui .container {
+    background: #111827;
+}
+
+/* PUSHボタン */
+#remote-button {
+    background: #7f1d1d;
+    color: #fff;
+    border-color: #991b1b;
+}
+#remote-button:disabled {
+    background: #1f2937;
+    color: #6b7280;
+    border-color: #333;
+}
+
+/* ゲームオーバー */
+#player-gameover {
+    background: rgba(0,0,0,0.97);
+}
+
     </style>
 </head>
 <body>
@@ -321,6 +439,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
