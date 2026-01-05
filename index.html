@@ -305,6 +305,8 @@ input::placeholder {
                     <button onclick="openSubWindow()" style="background:#8e44ad; color:white; flex:1; padding:10px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;">📺 視聴者画面を開く</button>
                     <button onclick="db.ref('isGameSet').set(true)" style="background:var(--dark); color:white; padding:10px; border-radius:8px; border:none; cursor:pointer;">🏁 ゲームセット</button>
                     <button onclick="resetAll()" style="background:var(--danger); color:white; padding:10px; border-radius:8px; border:none; cursor:pointer;">🚮 全消去</button>
+<button onclick="revealBoardPlayer('Alice')">公開</button>
+
                 </div>
                 <div style="background:#fff3cd; padding:15px; border-radius:10px; text-align:center; border:2px solid #f1c40f; margin-bottom:15px;">
                     <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:10px;">
@@ -489,7 +491,8 @@ function removePlayer(n) {
     boardAnswers: null,
     typing: null,
     finalReveal: false,
-    boardReveal: false,  // ← ここで非表示リセット
+    boardReveal: false,
+    boardRevealList: {}, // ← ここで非表示リセット
     isGameSet: false
 });
  if(subWindow) subWindow.resetForNext(); sync(true); renderList(); }
@@ -589,7 +592,8 @@ function removePlayer(n) {
 
         // ← ここを修正
         // boardReveal が true になるまで、回答内容は隠す
-        const show = d.boardReveal || d.finalReveal || isWrong;
+        const show = d.boardReveal || (d.boardRevealList && d.boardRevealList[n]) || d.finalReveal || isWrong;
+
 
         let content = "";
         if (show) {
@@ -617,11 +621,21 @@ function revealBoard() {
     db.ref('boardReveal').set(true);  // ここで全員回答を表示
     if(subWindow) subWindow.revealBoard();
 }
+function revealBoardPlayer(playerName) {
+    const sn = safeName(playerName);
+    db.ref('boardRevealList/' + sn).set(true);
+}
 
+function revealBoard() {
+    db.ref('boardReveal').set(true);
+}
+
+    
     
 </script>
 </body>
 </html>
+
 
 
 
