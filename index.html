@@ -489,9 +489,10 @@ function removePlayer(n) {
     boardAnswers: null,
     typing: null,
     finalReveal: false,
-    boardReveal: false,   // ← 追加
+    boardReveal: false,  // ← ここで非表示リセット
     isGameSet: false
-}); if(subWindow) subWindow.resetForNext(); sync(true); renderList(); }
+});
+ if(subWindow) subWindow.resetForNext(); sync(true); renderList(); }
     function startQuiz() { db.ref('status').set('active'); const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed); }
     function sync(forceHideSub = false) { const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${hEsc(c)}</span>` : `<span class="hidden">${hEsc(c)}</span>`).join(''); document.getElementById('display').innerHTML = h; if(subWindow && !forceHideSub) subWindow.document.getElementById('text').innerHTML = h; }
     
@@ -577,18 +578,33 @@ function removePlayer(n) {
                 window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div style="display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
                 window.showResult = (list, hist) => { document.getElementById('result-overlay').style.display='flex'; document.getElementById('res-list').innerHTML = list.map(([n,v],i) => '<div style="font-size:2rem;margin:10px;padding:15px;background:rgba(255,255,255,0.1);border-radius:10px;border-left:10px solid '+(i===0?'#f1c40f':(i===1?'#bdc3c7':'#cd7f32'))+'">'+(i+1)+'位 '+n+': '+v+'pt</div>').join(''); document.getElementById('hist-inner').innerHTML = hist.map(item => '<div style="margin-bottom:15px;border-bottom:1px solid #444;font-size:0.9rem;">'+item.q+'<br><b style="color:#f1c40f;font-size:1.2rem;">正解: '+item.a+'</b></div>').join(''); };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display='none'; };
-                window.syncBoard = (d) => {
-                    const area = document.getElementById('board-area');
-                    const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
-                    area.innerHTML = players.map(n => {
-                        const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
-                        const isCorrect = d.correctList?.[n], isWrong = d.wrongList?.[n];
-                        const show = d.boardReveal || d.finalReveal || isWrong;
-                        let content = show ? (ans || "") : (ans ? "？？？" : (isTyping ? "<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>" : ""));
-                        if(!content && !isTyping) return "";
-                        return '<div class="board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'"><small>'+n+'</small><div style="font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;">'+content+'</div></div>';
-                    }).join('');
-                };
+               window.syncBoard = (d) => {
+    const area = document.getElementById('board-area');
+    const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
+
+    area.innerHTML = players.map(n => {
+        const ans = d.boardAnswers?.[n];
+        const isTyping = d.typing?.[n];
+        const isCorrect = d.correctList?.[n], isWrong = d.wrongList?.[n];
+
+        // ← ここを修正
+        // boardReveal が true になるまで、回答内容は隠す
+        const show = d.boardReveal || d.finalReveal || isWrong;
+
+        let content = "";
+        if (show) {
+            content = ans || "";
+        } else if (isTyping) {
+            content = "<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>";
+        } else {
+            content = ""; // 回答は絶対に非表示
+        }
+
+        if (!content) return "";
+        return '<div class="board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'"><small>'+n+'</small><div style="font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;">'+content+'</div></div>';
+    }).join('');
+};
+
                 window.resetForNext = () => { document.getElementById('ans').style.display='none'; document.getElementById('board-area').innerHTML=''; document.getElementById('text').innerHTML=''; };
                 document.body.addEventListener('click', () => { Object.values(sounds).forEach(s => { s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => 0); }); }, { once: true });
             <\/script></body></html>`);
@@ -597,10 +613,16 @@ function removePlayer(n) {
     db.ref('boardReveal').set(true);
     if (subWindow) subWindow.revealBoard();
 }
+function revealBoard() {
+    db.ref('boardReveal').set(true);  // ここで全員回答を表示
+    if(subWindow) subWindow.revealBoard();
+}
 
+    
 </script>
 </body>
 </html>
+
 
 
 
