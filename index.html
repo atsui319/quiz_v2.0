@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - test Version</title>
+    <title>QuizConsole Pro - The Perfect Version</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -440,71 +440,10 @@ const URLS = {
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
             const bArea = document.getElementById('boardResults');
-            // ----------------------
-// boardResults 完全版（正誤判定＋個別/一斉公開）
-// ----------------------
-const bArea = document.getElementById('boardResults');
-if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers){
-    bArea.style.display = 'block';
-    document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `
-        <div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}; padding:5px; margin-bottom:4px;">
-            <span><b>${hEsc(n)}</b>: ${hEsc(ans)}</span>
-            <div style="display:flex; gap:5px; margin-top:4px;">
-                <button onclick="judge(true, '${n}')">⭕</button>
-                <button onclick="judge(false, '${n}')">❌</button>
-                <button onclick="revealBoardSingle('${n}')">🖊 公開</button>
-            </div>
-        </div>
-    `).join('');
-
-    // 一斉公開ボタンを追加（重複防止）
-    if(!document.getElementById('revealAllBtn')){
-        const btn = document.createElement('button');
-        btn.id = 'revealAllBtn';
-        btn.innerText = '🖊 ボード一斉公開';
-        btn.style.cssText = 'flex:1; padding:8px; background:#4caf50; color:white; border:none; border-radius:4px; font-weight:bold; margin-top:5px;';
-        btn.onclick = revealBoardAll;
-        bArea.appendChild(btn);
-    }
-
-} else {
-    bArea.style.display = 'none';
-}
-
-// ----------------------
-// 個別ボード公開
-// ----------------------
-function revealBoardSingle(playerName){
-    db.ref('finalReveal/' + safeName(playerName)).set(true);
-    if(subWindow){
-        const tempBoard = {};
-        tempBoard[playerName] = d.boardAnswers?.[playerName] || "";
-        subWindow.syncBoard({ 
-            boardAnswers: tempBoard, 
-            typing: {}, 
-            correctList: {}, 
-            wrongList: {}, 
-            finalReveal: true 
-        });
-    }
-}
-
-// ----------------------
-// ボード一斉公開
-// ----------------------
-function revealBoardAll(){
-    db.ref('finalReveal').set(true);
-    if(subWindow){
-        subWindow.syncBoard({ 
-            boardAnswers: d.boardAnswers, 
-            typing: {}, 
-            correctList: d.correctList, 
-            wrongList: d.wrongList, 
-            finalReveal: true 
-        });
-    }
-}
- else bArea.style.display = 'none';
+            if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
+                bArea.style.display = 'block';
+                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}"><span>${hEsc(n)}: ${hEsc(ans)}</span><div><button onclick="judge(true, '${n}')">〇</button><button onclick="judge(false, '${n}')">×</button></div></div>`).join('');
+            } else bArea.style.display = 'none';
             if(subWindow) { subWindow.syncBoard(d); subWindow.toggleRank(d.rankVisible !== false); subWindow.updateRank(scoreEntries); if(d.isGameSet) subWindow.showResult(scoreEntries, history); else subWindow.hideResult(); }
         });
     }
@@ -641,8 +580,6 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
-
-
 
 
 
