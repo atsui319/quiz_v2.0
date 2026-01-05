@@ -172,6 +172,49 @@ input::placeholder {
     font-size: 1.1rem;
 }
 
+        /* =========================
+   管理者：回答リストダークモード
+   ========================= */
+#boardResults {
+    background: #111827 !important;
+    border: 2px solid #334155 !important;
+    color: #e5e7eb !important;
+}
+
+#boardResults strong {
+    color: #9ca3af !important;
+}
+
+#board-list-inner {
+    background: transparent !important;
+    color: #e5e7eb !important;
+}
+
+.board-ans-item {
+    background: #1f2937;
+    color: #e5e7eb;
+    border-left: 5px solid #555;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.board-ans-item button {
+    background: #2b3548;
+    color: #e5e7eb;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.8rem;
+}
+
+.board-ans-item button:hover {
+    background: #3b4252;
+}
+
 /* =========================
    管理者：正誤判定＆操作エリア
    ========================= */
@@ -580,6 +623,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
