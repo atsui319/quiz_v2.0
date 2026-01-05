@@ -410,7 +410,9 @@ input::placeholder {
     async function initAdmin() {
         db.ref('usedSet').on('value', s => { usedSet = new Set(s.val() || []); renderList(); });
         const tabs = document.getElementById('genre-tabs');
-        tabs.innerHTML = '<button class="btn-genre active" onclick="setGenre(\'all\')">全</button>' + Object.keys(URLS).map(k => `<button class="btn-genre" onclick="setGenre('${k}')">${k}</button>`).join('');
+tabs.innerHTML = '<button class="btn-genre active" onclick="setGenre(\'all\')">全</button>' 
+    + Object.keys(URLS).map(k => `<button class="btn-genre" onclick="setGenre('${k}')">${k}</button>`).join('');
+
         for (let [k, url] of Object.entries(URLS)) {
             try {
                 const res = await fetch(url + "&t=" + Date.now());
@@ -524,6 +526,7 @@ input::placeholder {
 
 </body>
 </html>
+
 
 
 
