@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Perfect Final Edition</title>
+    <title>QuizConsole Pro - Final Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -111,16 +111,23 @@
 </div>
 
 <div id="player-ui" class="page-section">
-    <div id="player-content-area" class="container" style="max-width: 500px; margin: 20px auto; text-align: center; background:#161a22;">
-        <div style="font-size:2.5rem; font-weight:bold;">Score: <span id="p-score">0</span></div>
-        <div id="player-status-area" style="margin:15px; min-height:40px; font-weight:bold; color:var(--danger);"></div>
-        <div id="name-input-area">
-            <input type="text" id="p-name" placeholder="名前を入力" style="width:85%; padding:15px; font-size:1.3rem; border-radius:10px; margin-bottom:10px; text-align:center;">
-            <button id="p-lock-btn" onclick="lockName()" style="width:85%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold;">参加する</button>
+    <div id="player-main-container" class="container" style="max-width: 500px; margin: 20px auto; text-align: center; background:#161a22;">
+        <div id="player-active-ui">
+            <div style="font-size:2.5rem; font-weight:bold;">Score: <span id="p-score">0</span></div>
+            <div id="player-status-area" style="margin:15px; min-height:40px; font-weight:bold; color:var(--danger);"></div>
+            <div id="name-input-area">
+                <input type="text" id="p-name" placeholder="名前を入力" style="width:85%; padding:15px; font-size:1.3rem; border-radius:10px; margin-bottom:10px; text-align:center;">
+                <button id="p-lock-btn" onclick="lockName()" style="width:85%; padding:10px; background:var(--primary); color:white; border:none; border-radius:8px; font-weight:bold;">参加する</button>
+            </div>
+            <div id="locked-name-display" style="display:none; font-size:1.5rem; margin-bottom:20px; color:#bbb;">参加者: <strong id="current-player-name"></strong></div>
+            <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#064e3b; padding:20px; border-radius:15px; border:2px solid var(--success);"><input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);"><br><br><button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button></div>
+            <button id="remote-button" onclick="pushBtn()">PUSH!</button>
         </div>
-        <div id="locked-name-display" style="display:none; font-size:1.5rem; margin-bottom:20px; color:#bbb;">参加者: <strong id="current-player-name"></strong></div>
-        <div id="board-input-ui" style="display:none; margin-bottom:20px; background:#064e3b; padding:20px; border-radius:15px; border:2px solid var(--success);"><input type="text" id="board-text" placeholder="答えを入力" oninput="reportTyping(this.value)" style="width:90%; padding:15px; font-size:1.8rem; border-radius:10px; border:2px solid var(--success);"><br><br><button onclick="sendBoardAns()" style="padding:15px 40px; background:var(--success); color:white; border:none; border-radius:10px; font-weight:bold; font-size:1.2rem;">回答送信</button></div>
-        <button id="remote-button" onclick="pushBtn()">PUSH!</button>
+        <div id="player-gameset-ui" style="display:none; padding:50px 0;">
+            <h1 style="color:var(--danger); font-size:3rem;">🏁 GAME SET</h1>
+            <h2 id="final-score-display" style="font-size:2rem;"></h2>
+            <button onclick="location.reload()" style="padding:10px 20px; font-size:1.2rem;">トップへ戻る</button>
+        </div>
     </div>
 </div>
 
@@ -219,18 +226,19 @@
         history.push({q, a}); 
         document.getElementById('admin-q-full').innerText = q; 
         document.getElementById('admin-a-full').innerText = a; 
-        // 状態リセットの徹底：GameSet解除・ボードデータ消去
+        
+        // データの完全初期化
         db.ref().update({ 
             status: "waiting", 
             winner: "", 
             correctList: null, 
             wrongList: null, 
-            boardAnswers: null, 
+            boardAnswers: null, // ここで管理者画面の回答リストを消去
             typing: null, 
             finalReveal: false, 
-            openBoards: null, 
+            openBoards: null,   // ここで個別公開フラグを消去
             revealAllBoards: false, 
-            isGameSet: false 
+            isGameSet: false     // ゲームセット解除
         }); 
         if(subWindow) subWindow.resetForNext(); 
         sync(true); 
@@ -253,7 +261,6 @@
         let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
         if (count > 0) { requestSound('type'); sync(); }
     }
-    // 表記ゆれ（漢数字の〇と記号の○）を両方判定
     function openCircleOnly() { let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) { revealed.push(i); count++; } }); if(count > 0) { requestSound('type'); sync(); } }
     function openAll() { revealed = Array.from(currentQuiz.q).map((_, i) => i); sync(); }
 
@@ -279,7 +286,6 @@
 
     function lockName() { const n = document.getElementById('p-name').value.trim(); if(!n) return alert("名前！"); isPlayerLocked = true; document.getElementById('p-name').disabled = true; document.getElementById('p-lock-btn').style.display = 'none'; document.getElementById('locked-name-display').style.display = 'block'; document.getElementById('current-player-name').innerText = n; }
     
-    // 回答者画面の初期化と GameSet 検知の修正
     function initPlayer() { 
         const bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'); 
         db.ref().on('value', snap => { 
@@ -290,12 +296,14 @@
             const score = d.scores?.[sn] || 0; 
             document.getElementById('p-score').innerText = score; 
 
-            // ゲーム終了時の表示切替ロジック
-            if(d.isGameSet) { 
-                document.getElementById('player-content-area').innerHTML = `<div style="text-align:center;padding:50px 0;color:white;"><h1>🏁 GAME SET</h1><h2>Score: ${score}</h2><button onclick="location.reload()" style="padding:10px 20px;">トップに戻る</button></div>`; 
-                return;
-            } else if (!document.getElementById('remote-button')) {
-                location.reload(); // GameSetが解除されたらリロードしてUI復旧
+            // ゲームセット画面の切り替え
+            if(d.isGameSet) {
+                document.getElementById('player-active-ui').style.display = 'none';
+                document.getElementById('player-gameset-ui').style.display = 'block';
+                document.getElementById('final-score-display').innerText = "Final Score: " + score;
+            } else {
+                document.getElementById('player-active-ui').style.display = 'block';
+                document.getElementById('player-gameset-ui').style.display = 'none';
             }
 
             const w = (d.waits && d.waits[sn]) || 0; 
@@ -304,9 +312,7 @@
             const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board')); 
             bUI.style.display = showBoard ? 'block' : 'none'; 
             if(isCorrected) sArea.innerHTML = "✅ 正解！"; else if(isWinner) sArea.innerHTML = "🎤 解答権！"; else if(w > 0) sArea.innerHTML = "❌ お休み (" + w + ")"; else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中"; 
-            if (document.getElementById('remote-button')) {
-                document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
-            }
+            document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
         }); 
     }
     function reportTyping(val) { const name = safeName(document.getElementById('p-name').value.trim()); if(isPlayerLocked) db.ref('typing/'+name).set(val.length > 0); }
@@ -347,7 +353,6 @@
                     area.innerHTML = players.map(n => {
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
                         const isCorrect = d.correctList?.[n], isWrong = d.wrongList?.[n];
-                        // 個別公開フラグ (openBoards) または全公開フラグをチェック
                         const isOpen = d.revealAllBoards || (d.openBoards && d.openBoards[n.replace(/[.#$/[\\\]]/g, \"_\")]) || isWrong;
                         let content = isOpen ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
                         if(!content && !isTyping) return \"\";
