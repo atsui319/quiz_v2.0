@@ -509,12 +509,28 @@ function removePlayer(n) {
     function modifyWait(n, v) { db.ref('waits/'+safeName(n)).transaction(w => Math.max(0, (w||0)+v)); }
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
     function setGenre(g) { activeGenre = g; renderList(); }
+   // 偏りのないシャッフルアルゴリズム (Fisher-Yates)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
     function renderList() {
         const s = document.getElementById('search').value.toLowerCase();
         const area = document.getElementById('quiz-list-area');
         let list = masterData[activeGenre] || [];
-        if(s) list = list.filter(i => i.q.includes(s) || i.a.includes(s));
-        else list = [...list].sort(() => Math.random() - 0.5).slice(0, 50);
+        
+        if(s) {
+            // 検索時は元のロジックを維持
+            list = list.filter(i => i.q.includes(s) || i.a.includes(s));
+        } else {
+            // 非検索時は、真のランダム化を行ってから50件抽出
+            list = shuffleArray([...list]).slice(0, 50);
+        }
+        
         area.innerHTML = list.map(i => `<div class="quiz-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="padding:10px; border-bottom:1px solid #eee; ${usedSet.has(i.q)?'opacity:0.3;':'cursor:pointer;'}"><strong>${hEsc(i.a)}</strong><br><small style="color:#666;">${hEsc(i.q)}</small></div>`).join('');
         area.scrollTop = 0;
     }
@@ -623,6 +639,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
