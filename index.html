@@ -468,9 +468,15 @@ function revealBoardSingle(player) {
         sync(true); 
         renderList(); 
     }
+    function revealBoardAll() {
+    db.ref('finalReveal').set(true); // boardAnswers の全員を公開するフラグ
+    if(subWindow) subWindow.syncBoard({boardAnswers: {}, typing: {}, correctList: {}, wrongList: {}, finalReveal: true});
+}
+
 </script>
 </body>
 </html>
+
 
 
 
