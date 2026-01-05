@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Final Fixed</title>
+    <title>QuizConsole Pro - Final Fixed v2</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -178,15 +178,19 @@
                 const w = d.waits?.[n] || 0;
                 return `<div class="mgr-item"><div style="display:flex;justify-content:space-between"><span><b>${hEsc(n)}</b>: ${v}pt</span><button onclick="removePlayer('${n}')">🗑️</button></div><div><button onclick="modifyScore('${n}',1)">+</button><button onclick="modifyScore('${n}',-1)">-</button> <span style="color:red">休${w}</span><button onclick="modifyWait('${n}',1)">+</button><button onclick="modifyWait('${n}',-1)">-</button></div></div>`;
             }).join('');
+            
             const statusLabel = document.getElementById('status-label');
             if(d.status === 'active') { statusLabel.innerText = "🟢 受付中"; statusLabel.style.background = "var(--success)"; }
             else if(d.status === 'pushed') { statusLabel.innerText = "🔴 解答待ち"; statusLabel.style.background = "var(--danger)"; }
             else { statusLabel.innerText = "⚪ 待機中"; statusLabel.style.background = "#777"; }
+            
             document.getElementById('activePlayer').innerText = d.winner ? "🎤 " + d.winner : (d.mode === 'all_board' && d.status !== 'waiting' ? "🖊 全員解答中" : "待機中");
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
+
+            // 管理画面のボード解答表示の制御
             const bArea = document.getElementById('boardResults');
-            if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
+            if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers && Object.keys(d.boardAnswers).length > 0) {
                 bArea.style.display = 'block';
                 document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => 
                     `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}">
@@ -197,8 +201,18 @@
                             <button onclick="judge(false, '${n}')">❌</button>
                         </div>
                     </div>`).join('');
-            } else bArea.style.display = 'none';
-            if(subWindow) { subWindow.syncBoard(d); subWindow.toggleRank(d.rankVisible !== false); subWindow.updateRank(scoreEntries); if(d.isGameSet) subWindow.showResult(scoreEntries, history); else subWindow.hideResult(); }
+            } else {
+                bArea.style.display = 'none';
+                document.getElementById('board-list-inner').innerHTML = "";
+            }
+
+            if(subWindow) { 
+                subWindow.syncBoard(d); 
+                subWindow.toggleRank(d.rankVisible !== false); 
+                subWindow.updateRank(scoreEntries); 
+                if(d.isGameSet) subWindow.showResult(scoreEntries, history); 
+                else subWindow.hideResult(); 
+            }
         });
     }
 
@@ -217,6 +231,7 @@
         area.scrollTop = 0;
     }
 
+    // 問題セット時の処理（最重要修正ポイント）
     function applyQuiz(q, a) { 
         clearInterval(timer); 
         currentQuiz = { q, a }; 
@@ -227,19 +242,22 @@
         document.getElementById('admin-q-full').innerText = q; 
         document.getElementById('admin-a-full').innerText = a; 
         
-        // データの完全初期化
+        // Firebaseの各ノードを個別に空にする（物理削除）
+        db.ref('boardAnswers').set(null); 
+        db.ref('openBoards').set(null);
+        db.ref('typing').set(null);
+        db.ref('correctList').set(null);
+        db.ref('wrongList').set(null);
+
+        // 全体の状態をリセット
         db.ref().update({ 
             status: "waiting", 
             winner: "", 
-            correctList: null, 
-            wrongList: null, 
-            boardAnswers: null, // ここで管理者画面の回答リストを消去
-            typing: null, 
             finalReveal: false, 
-            openBoards: null,   // ここで個別公開フラグを消去
             revealAllBoards: false, 
-            isGameSet: false     // ゲームセット解除
+            isGameSet: false 
         }); 
+
         if(subWindow) subWindow.resetForNext(); 
         sync(true); 
         renderList(); 
@@ -296,7 +314,6 @@
             const score = d.scores?.[sn] || 0; 
             document.getElementById('p-score').innerText = score; 
 
-            // ゲームセット画面の切り替え
             if(d.isGameSet) {
                 document.getElementById('player-active-ui').style.display = 'none';
                 document.getElementById('player-gameset-ui').style.display = 'block';
@@ -349,6 +366,7 @@
                 window.hideResult = () => { document.getElementById('result-overlay').style.display='none'; };
                 window.syncBoard = (d) => {
                     const area = document.getElementById('board-area');
+                    // 解答がある、またはタイピング中のプレイヤーを抽出
                     const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
                     area.innerHTML = players.map(n => {
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
