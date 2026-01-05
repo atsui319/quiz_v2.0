@@ -143,6 +143,34 @@ input::placeholder {
 #player-gameover {
     background: rgba(0,0,0,0.97);
 }
+/* =========================
+   管理者：現在の問題 表示
+   ========================= */
+
+/* 親コンテナ（インライン style="background:#eee" を上書き） */
+#admin-q-full,
+#admin-a-full {
+    background: transparent !important;
+}
+
+/* 問題文：黒背景＋白文字 */
+#admin-q-full {
+    display: block;
+    margin-top: 4px;
+    padding: 8px 10px;
+    background: #000000 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+    font-weight: bold;
+    line-height: 1.4;
+}
+
+/* 正解：赤文字（背景なし） */
+#admin-a-full {
+    color: #ff4d4d !important;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
 
     </style>
 </head>
@@ -439,6 +467,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
