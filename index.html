@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - The Perfect Version (Symbol Multi-Support)</title>
+    <title>QuizConsole Pro - Perfect Final Edition</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -111,7 +111,7 @@
 </div>
 
 <div id="player-ui" class="page-section">
-    <div class="container" style="max-width: 500px; margin: 20px auto; text-align: center; background:#161a22;">
+    <div id="player-content-area" class="container" style="max-width: 500px; margin: 20px auto; text-align: center; background:#161a22;">
         <div style="font-size:2.5rem; font-weight:bold;">Score: <span id="p-score">0</span></div>
         <div id="player-status-area" style="margin:15px; min-height:40px; font-weight:bold; color:var(--danger);"></div>
         <div id="name-input-area">
@@ -209,7 +209,34 @@
         area.innerHTML = list.map(i => `<div class="quiz-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="${usedSet.has(i.q)?'opacity:0.3;':'cursor:pointer;'}"><strong>${hEsc(i.a)}</strong><br><small style="color:#666;">${hEsc(i.q)}</small></div>`).join('');
         area.scrollTop = 0;
     }
-    function applyQuiz(q, a) { clearInterval(timer); currentQuiz = { q, a }; revealed = []; usedSet.add(q); db.ref('usedSet').set([...usedSet]); history.push({q, a}); document.getElementById('admin-q-full').innerText = q; document.getElementById('admin-a-full').innerText = a; db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, openBoards: null, revealAllBoards: false, isGameSet: false }); if(subWindow) subWindow.resetForNext(); sync(true); renderList(); }
+
+    function applyQuiz(q, a) { 
+        clearInterval(timer); 
+        currentQuiz = { q, a }; 
+        revealed = []; 
+        usedSet.add(q); 
+        db.ref('usedSet').set([...usedSet]); 
+        history.push({q, a}); 
+        document.getElementById('admin-q-full').innerText = q; 
+        document.getElementById('admin-a-full').innerText = a; 
+        // 状態リセットの徹底：GameSet解除・ボードデータ消去
+        db.ref().update({ 
+            status: "waiting", 
+            winner: "", 
+            correctList: null, 
+            wrongList: null, 
+            boardAnswers: null, 
+            typing: null, 
+            finalReveal: false, 
+            openBoards: null, 
+            revealAllBoards: false, 
+            isGameSet: false 
+        }); 
+        if(subWindow) subWindow.resetForNext(); 
+        sync(true); 
+        renderList(); 
+    }
+
     function startQuiz() { db.ref('status').set('active'); const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed); }
     function sync(forceHideSub = false) { const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${hEsc(c)}</span>` : `<span class="hidden">${hEsc(c)}</span>`).join(''); document.getElementById('display').innerHTML = h; if(subWindow && !forceHideSub) subWindow.document.getElementById('text').innerHTML = h; }
     
@@ -251,18 +278,35 @@
     function resetAll() { if (confirm("完全リセット？")) { history = []; usedSet.clear(); db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [] }); renderList(); } }
 
     function lockName() { const n = document.getElementById('p-name').value.trim(); if(!n) return alert("名前！"); isPlayerLocked = true; document.getElementById('p-name').disabled = true; document.getElementById('p-lock-btn').style.display = 'none'; document.getElementById('locked-name-display').style.display = 'block'; document.getElementById('current-player-name').innerText = n; }
+    
+    // 回答者画面の初期化と GameSet 検知の修正
     function initPlayer() { 
         const bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'); 
         db.ref().on('value', snap => { 
             if(!isPlayerLocked) return; 
-            const d = snap.val() || {}; const name = document.getElementById('p-name').value.trim(); const sn = safeName(name); const score = d.scores?.[sn] || 0; 
+            const d = snap.val() || {}; 
+            const name = document.getElementById('p-name').value.trim(); 
+            const sn = safeName(name); 
+            const score = d.scores?.[sn] || 0; 
             document.getElementById('p-score').innerText = score; 
-            const w = (d.waits && d.waits[sn]) || 0; const isCorrected = d.correctList && d.correctList[sn]; const isWinner = (d.winner === name); 
+
+            // ゲーム終了時の表示切替ロジック
+            if(d.isGameSet) { 
+                document.getElementById('player-content-area').innerHTML = `<div style="text-align:center;padding:50px 0;color:white;"><h1>🏁 GAME SET</h1><h2>Score: ${score}</h2><button onclick="location.reload()" style="padding:10px 20px;">トップに戻る</button></div>`; 
+                return;
+            } else if (!document.getElementById('remote-button')) {
+                location.reload(); // GameSetが解除されたらリロードしてUI復旧
+            }
+
+            const w = (d.waits && d.waits[sn]) || 0; 
+            const isCorrected = d.correctList && d.correctList[sn]; 
+            const isWinner = (d.winner === name); 
             const showBoard = (d.mode === 'all_board' && d.status !== 'waiting') || (isWinner && (d.mode === 'board' || d.mode === 'all_board')); 
             bUI.style.display = showBoard ? 'block' : 'none'; 
             if(isCorrected) sArea.innerHTML = "✅ 正解！"; else if(isWinner) sArea.innerHTML = "🎤 解答権！"; else if(w > 0) sArea.innerHTML = "❌ お休み (" + w + ")"; else sArea.innerHTML = d.status === 'active' ? "受付中" : "待機中"; 
-            document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
-            if(d.isGameSet) { document.body.innerHTML = `<div style="text-align:center;padding-top:100px;color:white;"><h1>🏁 GAME SET</h1><h2>Score: ${score}</h2><button onclick=\"location.reload()\">TOP</button></div>`; }
+            if (document.getElementById('remote-button')) {
+                document.getElementById('remote-button').disabled = !(w === 0 && d.status === 'active' && !d.winner && !isCorrected && d.mode !== 'all_board'); 
+            }
         }); 
     }
     function reportTyping(val) { const name = safeName(document.getElementById('p-name').value.trim()); if(isPlayerLocked) db.ref('typing/'+name).set(val.length > 0); }
@@ -303,9 +347,10 @@
                     area.innerHTML = players.map(n => {
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
                         const isCorrect = d.correctList?.[n], isWrong = d.wrongList?.[n];
-                        const isOpen = d.revealAllBoards || d.openBoards?.[n.replace(/[.#$/[\\\]]/g, "_")] || isWrong;
-                        let content = isOpen ? (ans || "") : (ans ? "？？？" : (isTyping ? "<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>" : ""));
-                        if(!content && !isTyping) return "";
+                        // 個別公開フラグ (openBoards) または全公開フラグをチェック
+                        const isOpen = d.revealAllBoards || (d.openBoards && d.openBoards[n.replace(/[.#$/[\\\]]/g, \"_\")]) || isWrong;
+                        let content = isOpen ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
+                        if(!content && !isTyping) return \"\";
                         return '<div class=\"board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'\"><small>'+n+'</small><div style=\"font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;\">'+content+'</div></div>';
                     }).join('');
                 };
