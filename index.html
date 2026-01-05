@@ -69,9 +69,13 @@
                         <div id="board-list-inner"></div>
                     </div>
                     <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button style="flex:1; height:60px; background:#166534; color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(true)">⭕</button>
-                        <button style="flex:1; height:60px; background:#7f1d1d; color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(false)">❌</button>
-                    </div>
+    <button style="flex:1; height:60px; background:var(--success); color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(true)">⭕</button>
+    <button style="flex:1; height:60px; background:var(--danger); color:white; font-size:2rem; border-radius:8px; border:none; cursor:pointer;" onclick="judge(false)">❌</button>
+</div>
+<div style="margin-top:8px;">
+    <button onclick="revealBoardAll()" style="flex:1; padding:10px; background:#4caf50; color:white; border:none; border-radius:4px; font-weight:bold;">🖊 ボード一斉公開</button>
+</div>
+
                     <div style="margin-top:8px; display:flex; gap:5px;">
                         <button onclick="resumeQuiz()" style="flex:1; padding:10px; font-weight:bold; background:#1f2937; color:white;">▶ 続行</button>
                         <button onclick="revealBoardAll()" style="flex:1; padding:10px; background:#1e40af; color:white; border:none; border-radius:4px; font-weight:bold;">🖼 ボード全公開</button>
@@ -196,7 +200,16 @@
             const bArea = document.getElementById('boardResults');
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers && Object.keys(d.boardAnswers).length > 0) {
                 bArea.style.display = 'block';
-                document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => 
+document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => `
+    <div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'green':(d.wrongList?.[n]?'red':'#ccc')}">
+        <span>${hEsc(n)}: ${hEsc(ans)}</span>
+        <div style="display:flex; gap:5px; margin-top:4px;">
+            <button onclick="judge(true, '${n}')">〇</button>
+            <button onclick="judge(false, '${n}')">×</button>
+            <button onclick="revealBoardSingle('${n}')">🖊 公開</button>
+        </div>
+    </div>
+`).join('');
                     `<div class="board-ans-item" style="border-left:5px solid ${d.correctList?.[n]?'#2ecc71':(d.wrongList?.[n]?'#ff5c5c':'#444')}">
                         <span style="flex:1;"><b>${hEsc(n)}</b>: ${hEsc(ans)}</span>
                         <div style="display:flex; gap:5px;">
@@ -297,6 +310,38 @@
             if(d.mode !== 'all_board') db.ref().update({ winner: "", status: "active" });
         });
     }
+    // 既存 judge 関数の下に追加
+function revealBoardAll() {
+    // 全員のボードを一斉公開
+    db.ref('finalReveal').set(true);
+    if(subWindow) {
+        const d = { correctList: {}, wrongList: {}, boardAnswers: {} };
+        db.ref().once('value').then(snap => {
+            const data = snap.val();
+            subWindow.resetForNext();
+            subWindow.syncBoard(data);
+        });
+    }
+}
+
+function revealBoardSingle(player) {
+    // 特定プレイヤーのボードのみ公開
+    db.ref('finalReveal').transaction(v => v || true); // 全体フラグはtrueのままでも良い
+    db.ref('boardAnswers/' + safeName(player)).once('value').then(snap => {
+        const ans = snap.val();
+        if(subWindow) {
+            // subWindowのboard-areaに個別反映
+            const boardArea = subWindow.document.getElementById('board-area');
+            const boxes = Array.from(boardArea.children);
+            boxes.forEach(box => {
+                if(box.querySelector('small')?.innerText === player) {
+                    box.querySelector('div').innerText = ans;
+                }
+            });
+        }
+    });
+}
+
 
     function resumeQuiz() { db.ref('status').set('active'); if(revealed.length < currentQuiz.q.length) startQuiz(); }
     function revealAnswer() { db.ref('finalReveal').set(true); if(subWindow) subWindow.revealAnsOnly(currentQuiz.a, currentQuiz.q); }
@@ -426,5 +471,6 @@
 </script>
 </body>
 </html>
+
 
 
