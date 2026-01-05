@@ -196,6 +196,51 @@ input::placeholder {
 #admin-ui input[type="range"] {
     background: transparent;
 }
+/* =========================
+   管理者：正誤判定＆操作エリア
+   ========================= */
+
+/* 正誤判定エリア全体（黄色枠の中） */
+#admin-ui > .admin-flex .container > div[style*="fff3cd"] {
+    background: #0f172a !important;
+    border: 2px solid #334155 !important;
+    color: #e5e7eb;
+}
+
+/* 正解（⭕）ボタン */
+#admin-ui button[onclick*="judge(true)"] {
+    background: #166534 !important;
+    border: none;
+    color: #ffffff;
+}
+#admin-ui button[onclick*="judge(true)"]:hover {
+    background: #22c55e !important;
+}
+
+/* 不正解（❌）ボタン */
+#admin-ui button[onclick*="judge(false)"] {
+    background: #7f1d1d !important;
+    border: none;
+    color: #ffffff;
+}
+#admin-ui button[onclick*="judge(false)"]:hover {
+    background: #ef4444 !important;
+}
+
+/* 続行・答え公開エリア */
+#admin-ui button[onclick="resumeQuiz()"],
+#admin-ui button[onclick="revealAnswer()"] {
+    background: #1f2937 !important;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+}
+
+/* 答え公開を強調 */
+#admin-ui button[onclick="revealAnswer()"] {
+    background: #4c1d95 !important;
+    border: none;
+    color: #ffffff;
+}
 
     </style>
 </head>
@@ -492,6 +537,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
