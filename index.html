@@ -577,54 +577,6 @@ function removePlayer(n) {
                 document.body.addEventListener('click', () => { Object.values(sounds).forEach(s => { s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => 0); }); }, { once: true });
             <\/script></body></html>`);
     }
-    // --- ボード個別オープン用 ---
-function openBoard(playerName) {
-    db.ref().once('value').then(snap => {
-        const d = snap.val() || {};
-        if (!d.boardAnswers || !d.boardAnswers[playerName]) return;
-        if (!d.correctList) d.correctList = {};
-        d.correctList[playerName] = true; // 個別公開
-        db.ref('correctList/' + safeName(playerName)).set(true);
-        syncBoardSub(d); // サブ画面反映
-    });
-}
-
-// --- ボード一斉公開用 ---
-function revealAllBoards() {
-    db.ref().once('value').then(snap => {
-        const d = snap.val() || {};
-        if (!d.boardAnswers) return;
-        const updates = {};
-        for (const player of Object.keys(d.boardAnswers)) {
-            updates['correctList/' + safeName(player)] = true;
-        }
-        db.ref().update(updates);
-        db.ref('finalReveal').set(true); // 正解公開も同時に
-        syncBoardSub(d);
-    });
-}
-
-// --- 視聴画面へのボード反映（伏せ字保持対応） ---
-function syncBoardSub(d) {
-    if (!subWindow) return;
-    const area = subWindow.document.getElementById('board-area');
-    const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
-    area.innerHTML = players.map(n => {
-        const ans = d.boardAnswers?.[n];
-        const isTyping = d.typing?.[n];
-        const isCorrect = d.correctList?.[n];
-        const isWrong = d.wrongList?.[n];
-        // finalRevealフラグなしなら伏せ字
-        const show = isCorrect || d.finalReveal;
-        let content = show ? ans : (ans ? "？？？" : (isTyping ? "<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>" : ""));
-        if (!content && !isTyping) return "";
-        return `<div class="board-box ${isCorrect?'correct':(isWrong?'wrong':'')}">
-                    <small>${n}</small>
-                    <div style="font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;">${content}</div>
-                </div>`;
-    }).join('');
-}
-
 </script>
 </body>
 </html>
