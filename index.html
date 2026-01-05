@@ -217,6 +217,73 @@ input::placeholder {
     border: none;
     color: #ffffff;
 }
+/* =========================
+   管理者：問題文・答え・読上げ操作エリア
+   ========================= */
+
+/* 問題文＋正解の親エリア */
+#admin-ui span#admin-q-full,
+#admin-ui span#admin-a-full {
+    background: transparent !important;
+}
+
+/* 問題文：黒背景＋白文字 */
+#admin-q-full {
+    display: block;
+    margin-top: 6px;
+    padding: 10px 12px;
+    background: #000000 !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    font-weight: bold;
+    line-height: 1.5;
+}
+
+/* 正解：赤文字（背景なし） */
+#admin-a-full {
+    color: #ff4d4d !important;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* 問題文・正解を含むボックス全体 */
+#admin-ui .container > div:has(#admin-q-full) {
+    background: #111827 !important;
+    border: 1px solid #374151;
+    border-radius: 10px;
+}
+
+/* =========================
+   読み上げ速度調節エリア
+   ========================= */
+
+#admin-ui input[type="range"] {
+    accent-color: #4aa3ff;
+}
+
+/* 「速度」ラベル文字 */
+#admin-ui span,
+#admin-ui label {
+    color: #e5e7eb;
+}
+
+/* 読み上げ操作エリア全体 */
+#admin-ui button[onclick="startQuiz()"] {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: none;
+}
+#admin-ui button[onclick="startQuiz()"]:hover {
+    background: #3b82f6 !important;
+}
+
+/* 読み上げエリアの親コンテナ */
+#admin-ui .container > div:has(#readSpeed) {
+    background: #0f172a !important;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    color: #e5e7eb;
+}
 
     </style>
 </head>
@@ -513,6 +580,7 @@ function removePlayer(n) {
 </script>
 </body>
 </html>
+
 
 
 
