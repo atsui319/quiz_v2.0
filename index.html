@@ -386,6 +386,44 @@
                 document.body.addEventListener('click', () => { Object.values(sounds).forEach(s => { s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => 0); }); }, { once: true });
             <\/script></body></html>`);
     }
+    // 問題セット時の処理（リザルト解除を追加）
+    function applyQuiz(q, a) { 
+        clearInterval(timer); 
+        currentQuiz = { q, a }; 
+        revealed = []; 
+        usedSet.add(q); 
+        db.ref('usedSet').set([...usedSet]); 
+        history.push({q, a}); 
+        
+        document.getElementById('admin-q-full').innerText = q; 
+        document.getElementById('admin-a-full').innerText = a; 
+        
+        // 1. 各種回答データの物理削除
+        db.ref('boardAnswers').set(null); 
+        db.ref('openBoards').set(null);
+        db.ref('typing').set(null);
+        db.ref('correctList').set(null);
+        db.ref('wrongList').set(null);
+
+        // 2. 全体の状態リセット（★isGameSetをfalseにするのがポイント）
+        db.ref().update({ 
+            status: "waiting", 
+            winner: "", 
+            finalReveal: false, 
+            revealAllBoards: false, 
+            isGameSet: false // ここでリザルトを解除
+        }); 
+
+        // 3. サブウィンドウ側の表示も即時クリア
+        if(subWindow && !subWindow.closed) {
+            subWindow.resetForNext(); 
+            subWindow.hideResult(); // リザルト表示を強制終了
+        }
+        
+        sync(true); 
+        renderList(); 
+    }
 </script>
 </body>
 </html>
+
