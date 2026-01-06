@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Complete Version 2.5</title>
+    <title>QuizConsole Pro - Ultimate V2.7</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -14,14 +14,14 @@
         .admin-flex { display: flex; gap: 15px; height: calc(100vh - 40px); max-width: 1600px; margin: 0 auto; }
         .main-panel { flex: 1; overflow-y: auto; padding-right: 5px; }
         .sidebar { width: 380px; display: flex; flex-direction: column; gap: 15px; height: 100%; }
-        .sidebar-section { background: #161a22; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; min-height: 0; border: 1px solid #2a2f3a; }
-        #full-mgr-list, #quiz-list-area { background: #0d1117; border: 1px solid #222; border-radius: 8px; overflow-y: auto; }
+        .sidebar-section { background: #161a22; padding: 12px; border-radius: 12px; display: flex; flex-direction: column; min-height: 0; border: 1px solid #2a2f3a; }
+        #full-mgr-list, #quiz-list-area, #history-list { background: #0d1117; border: 1px solid #222; border-radius: 8px; overflow-y: auto; }
         #display { font-size: 1.8rem; background: #000; color: white; padding: 20px; border-radius: 8px; min-height: 4em; display: flex; flex-wrap: wrap; margin-bottom: 15px; border: 4px solid #222; }
         #display span { border-bottom: 2px solid #333; margin-right: 2px; min-width: 0.8em; text-align: center; white-space: pre; }
         #display span.hidden { visibility: hidden; }
-        .btn-genre { padding: 6px; font-size: 0.7rem; cursor: pointer; border: 1px solid #333; background: #111827; color: #d1d5db; border-radius: 4px; }
+        .btn-genre { padding: 4px 8px; font-size: 0.7rem; cursor: pointer; border: 1px solid #333; background: #111827; color: #d1d5db; border-radius: 4px; }
         .btn-genre.active { background: var(--primary); color: white; }
-        .mgr-item { display: flex; flex-direction: column; padding: 8px; border-bottom: 1px solid #222; font-size: 0.9rem; gap: 5px; }
+        .mgr-item { display: flex; flex-direction: column; padding: 8px; border-bottom: 1px solid #222; font-size: 0.85rem; gap: 5px; }
         .btn-ok { background: #16a34a !important; color: white; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; }
         .btn-ng { background: #dc2626 !important; color: white; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; }
         .board-mgr-item { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
@@ -97,15 +97,19 @@
             </div>
         </div>
         <div class="sidebar">
-            <div class="sidebar-section" style="height:40%">
-                <h3 style="margin:0 0 5px 0; font-size:1rem; color:var(--primary);">👤 プレイヤー</h3>
+            <div class="sidebar-section" style="height:30%">
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--primary);">👤 プレイヤー</h3>
                 <div id="full-mgr-list" style="flex:1;"></div>
             </div>
-            <div class="sidebar-section" style="flex:1">
-                <h3 style="margin:0 0 5px 0; font-size:1rem; color:var(--primary);">📚 問題検索</h3>
+            <div class="sidebar-section" style="height:40%">
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--primary);">📚 問題検索</h3>
                 <div id="genre-tabs" style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:5px;"></div>
-                <input type="text" id="search" placeholder="キーワード検索..." style="width:100%; padding:8px; box-sizing:border-box; margin-bottom:5px; background:#0d1117; color:#fff; border:1px solid #333;" oninput="renderList()">
+                <input type="text" id="search" placeholder="検索..." style="width:100%; padding:6px; box-sizing:border-box; margin-bottom:5px; background:#0d1117; color:#fff; border:1px solid #333;" oninput="renderList()">
                 <div id="quiz-list-area" style="flex:1;"></div>
+            </div>
+            <div class="sidebar-section" style="flex:1">
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴 (Clickで再セット)</h3>
+                <div id="history-list" style="flex:1;"></div>
             </div>
         </div>
     </div>
@@ -130,7 +134,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    let masterData = { all: [] }, activeGenre = 'all', usedSet = new Set(), currentQuiz = { q: "", a: "" }, revealed = [];
+    let masterData = { all: [] }, activeGenre = 'all', usedSet = new Set(), historyList = [], currentQuiz = { q: "", a: "" }, revealed = [];
     let timer = null, subWindow = null, lastStatus = "", isPlayerLocked = false;
 
     const URLS = {
@@ -197,7 +201,7 @@
     function modifyScore(n, v) { db.ref('scores/'+safeName(n)).transaction(s => (s||0)+v); }
     function modifyWait(n, v) { db.ref('waits/'+safeName(n)).transaction(w => Math.max(0, (w||0)+v)); }
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
-    function setGenre(g) { activeGenre = g; renderList(); }
+    function setGenre(g) { activeGenre = g; document.querySelectorAll('.btn-genre').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); renderList(); }
     function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
 
     function renderList() {
@@ -206,13 +210,26 @@
         let list = masterData[activeGenre] || [];
         if(s) list = list.filter(i => i.q.toLowerCase().includes(s) || i.a.toLowerCase().includes(s));
         else list = shuffleArray([...list]).slice(0, 50);
-        area.innerHTML = list.map(i => `<div class="mgr-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="cursor:pointer; border-bottom:1px solid #222;"><strong>${hEsc(i.a)}</strong><small style="color:#888;">${hEsc(i.q)}</small></div>`).join('');
+        area.innerHTML = list.map(i => `<div class="mgr-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="cursor:pointer; border-bottom:1px solid #222; ${usedSet.has(i.q) ? 'opacity:0.4;' : ''}"><strong>${hEsc(i.a)}</strong><small style="color:#888;">${hEsc(i.q)}</small></div>`).join('');
+    }
+
+    function renderHistory() {
+        document.getElementById('history-list').innerHTML = historyList.slice().reverse().map((h, idx) => {
+            const qEsc = h.q.replace(/'/g,"\\'");
+            const aEsc = h.a.replace(/'/g,"\\'");
+            return `<div class="mgr-item" onclick="applyQuiz('${hEsc(qEsc)}', '${hEsc(aEsc)}')" style="cursor:pointer; border-bottom:1px solid #222; background: #1a1f29;"><strong>${hEsc(h.a)}</strong><small style="color:#888;">${hEsc(h.q)}</small></div>`;
+        }).join('');
     }
 
     function applyQuiz(q, a) { 
         clearInterval(timer); 
         currentQuiz = { q, a }; revealed = []; 
         usedSet.add(q); db.ref('usedSet').set([...usedSet]);
+        // 同一問題の重複履歴を避ける場合は調整可能。ここでは単純に追加。
+        if(!historyList.some(h => h.q === q)) {
+            historyList.push({q, a});
+            renderHistory();
+        }
         document.getElementById('admin-q-full').innerText = q; 
         document.getElementById('admin-a-full').innerText = a; 
         db.ref('waits').once('value', snap => {
@@ -224,6 +241,7 @@
         db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, isGameSet: false }); 
         if(subWindow) subWindow.resetForNext(); 
         sync(true); 
+        renderList(); // 使用済みカラーを更新
     }
     
     function startQuiz() { db.ref('status').set('active'); const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed); }
@@ -252,7 +270,7 @@
 
     function resumeQuiz() { db.ref('status').set('active'); if(revealed.length < currentQuiz.q.length) startQuiz(); }
     function revealAnswer() { db.ref('finalReveal').set(true); if(subWindow) subWindow.reveal(currentQuiz.a, currentQuiz.q); }
-    function resetAll() { if (confirm("すべて消去しますか？")) { db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [] }); } }
+    function resetAll() { if (confirm("すべて消去しますか？")) { db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [] }); historyList = []; renderHistory(); } }
 
     function lockName() { const n = document.getElementById('p-name').value.trim(); if(!n) return alert("名前！"); isPlayerLocked = true; document.getElementById('p-name').disabled = true; document.getElementById('p-lock-btn').style.display = 'none'; document.getElementById('locked-name-display').style.display = 'block'; document.getElementById('current-player-name').innerText = n; }
     function initPlayer() { 
@@ -289,7 +307,7 @@
             @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         </style></head><body>
             <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
-            <div id="rank-side" id="rank-side-ui"><h2>RANKING</h2><div id="rank-list"></div></div>
+            <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
             <script>
                 const sounds = { push: new Audio('sounds/push.mp3'), correct: new Audio('sounds/correct.mp3'), wrong: new Audio('sounds/wrong.mp3'), type: new Audio('sounds/type.mp3') };
                 const safeName = (n) => n.replace(/[.#$/[\\\]]/g, \"_\");
@@ -319,4 +337,3 @@
 </script>
 </body>
 </html>
-
