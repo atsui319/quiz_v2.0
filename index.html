@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Ultimate V2.8</title>
+    <title>QuizConsole Pro - Ultimate V2.9</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -108,7 +108,7 @@
                 <div id="quiz-list-area" style="flex:1;"></div>
             </div>
             <div class="sidebar-section" style="flex:1">
-                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴 (Clickで再表示)</h3>
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴 (Clickで再セット)</h3>
                 <div id="history-list" style="flex:1;"></div>
             </div>
         </div>
@@ -197,7 +197,7 @@
                 subWindow.syncBoard(d); 
                 subWindow.toggleRank(d.rankVisible !== false); 
                 subWindow.updateRank(scoreEntries); 
-                if(d.isGameSet) subWindow.showResult(scoreEntries); 
+                if(d.isGameSet) subWindow.showResult(scoreEntries, currentQuiz.q, currentQuiz.a); 
                 else subWindow.hideResult(); 
             }
         });
@@ -302,12 +302,20 @@
             .board-box.correct { border-color: #2ecc71; background: #041; }
             .board-box.wrong { border-color: #e74c3c; background: #400; }
             #result-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:100; flex-direction:column; align-items:center; justify-content:center; }
-            .result-item { font-size:3rem; margin:10px; font-weight:bold; }
+            .result-item { font-size:2.5rem; margin:8px; font-weight:bold; }
+            #last-qa-box { background:#222; padding:15px; border-radius:12px; border:2px solid #555; margin-bottom:30px; text-align:center; max-width:80%; }
             @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         </style></head><body>
             <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
             <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
-            <div id="result-overlay"><h1>🏆 FINAL RESULT 🏆</h1><div id="result-list"></div></div>
+            <div id="result-overlay">
+                <h1>🏆 FINAL RESULT 🏆</h1>
+                <div id="last-qa-box">
+                    <div id="last-q" style="font-size:1.5rem; color:#ccc; margin-bottom:10px;"></div>
+                    <div id="last-a" style="font-size:2.5rem; color:#f1c40f; font-weight:bold;"></div>
+                </div>
+                <div id="result-list"></div>
+            </div>
             <script>
                 const sounds = { push: new Audio('sounds/push.mp3'), correct: new Audio('sounds/correct.mp3'), wrong: new Audio('sounds/wrong.mp3'), type: new Audio('sounds/type.mp3') };
                 const safeName = (n) => n.replace(/[.#$/[\\\]]/g, \"_\");
@@ -318,9 +326,11 @@
                     if(v) rs.classList.remove('hidden'); else rs.classList.add('hidden');
                 };
                 window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div style=\"display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;\"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
-                window.showResult = (list) => { 
+                window.showResult = (list, q, a) => { 
                     const over = document.getElementById('result-overlay');
                     over.style.display = 'flex';
+                    document.getElementById('last-q').innerText = q;
+                    document.getElementById('last-a').innerText = '正解：' + a;
                     document.getElementById('result-list').innerHTML = list.map(([n,v], i) => '<div class=\"result-item\" style=\"color:'+(i===0?'#f1c40f':'#fff')+'\">' + (i+1) + '位: ' + n + ' (' + v + 'pt)</div>').join('');
                 };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display = 'none'; };
