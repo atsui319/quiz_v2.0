@@ -6,7 +6,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0f1115; --primary: #4aa3ff; --danger: #ff5c5c; --success: #2ecc71; --dark: #000000; --test: #8e7dff; --warning: #f1c40f; }
+        :root { --bg: #0f1115; --primary: #4aa3ff; --danger: #ff5c5c; --success: #2ecc71; --dark: #000000; --test: #8e7dff; }
         body { font-family: sans-serif; background: var(--bg); color: #e5e7eb; margin: 0; padding: 10px; height: 100vh; overflow: hidden; box-sizing: border-box; }
         .page-section { display: none; height: 100%; } 
         #role-ui { display: block; }
@@ -26,9 +26,7 @@
         .btn-ng { background: #dc2626 !important; color: white; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; }
         .board-mgr-item { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .board-mgr-item.is-correct { background: rgba(34, 197, 94, 0.2); border-left: 5px solid #22c55e; }
-        .board-mgr-item.is-wrong { background: rgba(239, 68, 68, 0.2); border-left: 5px solid #ef4444; }
-        .btn-reveal { background: #6366f1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        .btn-reveal.active { background: #4338ca; border: 1px solid #fff; }
+        .btn-reveal-only { background: #4b5563; color: white; border: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         #remote-button { width: 180px; height: 180px; border-radius: 50%; font-size: 2rem; font-weight: bold; cursor: pointer; border: 8px solid #333; }
         #remote-button:not(:disabled) { background: #7f1d1d; color: white; border-color: #991b1b; }
         .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: white; font-weight: bold; }
@@ -71,10 +69,6 @@
                     <div id="activePlayer" style="font-size:2.2rem; font-weight:bold; color:var(--danger); min-height:1.2em;">待機中</div>
                     
                     <div id="boardResults" style="display:none; text-align:left; background:#111827; padding:10px; border-radius:8px; margin:10px 0; max-height:250px; overflow-y:auto; border:2px solid #334155;">
-                        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-                            <span style="font-weight: bold; color: var(--success);">📝 ボード回答状況</span>
-                            <button onclick="db.ref('boardRevealAll').set(true)" style="background:#444; color:white; border:none; padding:3px 10px; border-radius:4px; font-size:0.7rem; cursor:pointer;">全員一斉公開</button>
-                        </div>
                         <div id="board-list-inner"></div>
                     </div>
 
@@ -191,21 +185,19 @@
             document.getElementById('activePlayer').innerText = d.winner ? "🎤 " + d.winner : (d.mode === 'all_board' && d.status !== 'waiting' ? "🖊 全員解答中" : "待機中");
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
-            
+
             const bArea = document.getElementById('boardResults');
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
                 bArea.style.display = 'block';
                 document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => {
                     const sn = safeName(n);
-                    const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn];
-                    const isRevealed = d.revealedBoards?.[sn];
-                    let cls = "board-mgr-item" + (isCorrect ? " is-correct" : (isWrong ? " is-wrong" : ""));
+                    const isCorrect = d.correctList?.[sn];
+                    let cls = "board-mgr-item" + (isCorrect ? " is-correct" : "");
                     return `<div class="${cls}">
-                        <div style="flex:1;"><b>${hEsc(n)}</b>: ${hEsc(ans)}</div>
-                        <div style="display:flex; gap:5px; align-items:center;">
-                            <button class="btn-reveal ${isRevealed?'active':''}" onclick="db.ref('revealedBoards/${sn}').set(true)">👁️ 公開</button>
+                        <span><b>${hEsc(n)}</b>: ${hEsc(ans)}</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn-reveal-only" onclick="db.ref('revealedBoards/${sn}').set(true)">× (公開)</button>
                             <button class="btn-ok" style="padding:5px 12px;" onclick="judge(true, '${n}')">⭕</button>
-                            <button class="btn-ng" style="padding:5px 12px;" onclick="judge(false, '${n}')">❌</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -254,7 +246,7 @@
             Object.keys(waits).forEach(k => { if(waits[k] > 0) newWaits[k] = waits[k] - 1; });
             db.ref('waits').set(newWaits);
         });
-        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, boardRevealAll: false, revealedBoards: null, isGameSet: false }); 
+        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, revealedBoards: null, isGameSet: false }); 
         if(subWindow) subWindow.resetForNext(); 
         sync(true); renderList();
     }
@@ -370,10 +362,9 @@
                         const sn = safeName(n);
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
                         const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn];
-                        // 個別公開フラグ または 全体公開フラグ または 正解公開フラグ
-                        const isRevealed = d.revealedBoards?.[sn] || d.boardRevealAll || d.finalReveal;
-                        
-                        let content = isRevealed ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
+                        // 判定済み、または個別公開ボタン(revealedBoards)が押された、または答え公開時に表示
+                        const show = d.finalReveal || isCorrect || isWrong || (d.revealedBoards && d.revealedBoards[sn]);
+                        let content = show ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
                         if(!content && !isTyping) return \"\";
                         return '<div class=\"board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'\"><small>'+n+'</small><div style=\"font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;\">'+content+'</div></div>';
                     }).join('');
