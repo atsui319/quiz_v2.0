@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Ultimate V3.3</title>
+    <title>QuizConsole Pro - Ultimate V3.5</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -110,7 +110,7 @@
                 <div id="quiz-list-area" style="flex:1;"></div>
             </div>
             <div class="sidebar-section" style="flex:1">
-                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴 (Clickで再表示)</h3>
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴</h3>
                 <div id="history-list" style="flex:1;"></div>
             </div>
         </div>
@@ -137,7 +137,7 @@
     const db = firebase.database();
     
     let masterData = { all: [] }, activeGenre = 'all', usedSet = new Set(), historyList = [], currentQuiz = { q: "", a: "" }, revealed = [];
-    let timer = null, subWindow = null, lastStatus = "", isPlayerLocked = false;
+    let timer = null, subWindow = null, lastStatus = "";
 
     const URLS = {
         ori: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFuFjp8CnBMqfdRPKbQ_FPC6zWwgdQBVdTDsdWTHbBN92vXADxbVTmHdLm_C3Yn-Eeu5ZWm9WXRb0c/pub?output=csv",
@@ -151,7 +151,7 @@
 
     const hEsc = (s) => { const e = document.createElement('div'); e.textContent = s; return e.innerHTML; };
     const safeName = (n) => n.replace(/[.#$/[\]]/g, "_");
-    function requestSound(s) { if(subWindow && !subWindow.closed && subWindow.play) subWindow.play(s); }
+    function requestSound(s) { db.ref('soundRequest').set({ type: s, time: Date.now() }); }
     function switchPage(role) { document.querySelectorAll('.page-section').forEach(el => el.style.display = 'none'); document.getElementById(role + '-ui').style.display = 'block'; role === 'admin' ? initAdmin() : initPlayer(); }
 
     async function initAdmin() {
@@ -202,12 +202,12 @@
                     </div>`;
                 }).join('');
             } else bArea.style.display = 'none';
-            if(subWindow) { 
-                subWindow.syncBoard(d); 
-                subWindow.toggleRank(d.rankVisible !== false); 
-                subWindow.updateRank(scoreEntries); 
-                if(d.isGameSet) subWindow.showResult(scoreEntries, historyList); 
-                else subWindow.hideResult(); 
+            if(d.currentQuiz) {
+                currentQuiz = d.currentQuiz; revealed = d.revealed || [];
+                const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${hEsc(c)}</span>` : `<span class="hidden">${hEsc(c)}</span>`).join('');
+                document.getElementById('display').innerHTML = h;
+                document.getElementById('admin-q-full').innerText = currentQuiz.q;
+                document.getElementById('admin-a-full').innerText = currentQuiz.a;
             }
         });
     }
@@ -218,7 +218,6 @@
     function toggleRanking() { db.ref('rankVisible').transaction(v => v === undefined ? false : !v); }
     function setGenre(g) { activeGenre = g; document.querySelectorAll('.btn-genre').forEach(b => b.classList.remove('active')); event.target.classList.add('active'); renderList(); }
     function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
-
     function renderList() {
         const s = document.getElementById('search').value.toLowerCase();
         const area = document.getElementById('quiz-list-area');
@@ -227,7 +226,6 @@
         else list = shuffleArray([...list]).slice(0, 50);
         area.innerHTML = list.map(i => `<div class="mgr-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="cursor:pointer; border-bottom:1px solid #222;"><strong>${hEsc(i.a)}</strong><small style="color:#888;">${hEsc(i.q)}</small></div>`).join('');
     }
-
     function renderHistory() {
         document.getElementById('history-list').innerHTML = historyList.slice().reverse().map(h => `<div class="mgr-item" onclick="applyQuiz('${hEsc(h.q.replace(/'/g,"\\'"))}', '${hEsc(h.a.replace(/'/g,"\\'"))}')" style="cursor:pointer; border-bottom:1px solid #222; background: #1a1f29;"><strong>${hEsc(h.a)}</strong><small style="color:#888;">${hEsc(h.q)}</small></div>`).join('');
     }
@@ -236,35 +234,36 @@
         clearInterval(timer); 
         currentQuiz = { q, a }; revealed = []; 
         usedSet.add(q); db.ref('usedSet').set([...usedSet]);
-        if(!historyList.some(h => h.q === q)) { historyList.push({q, a}); renderHistory(); }
-        document.getElementById('admin-q-full').innerText = q; 
-        document.getElementById('admin-a-full').innerText = a; 
+        if(!historyList.some(h => h.q === q)) { historyList.push({q, a}); renderHistory(); db.ref('history').set(historyList); }
+        db.ref().update({ 
+            status: "waiting", winner: "", correctList: null, wrongList: null, 
+            boardAnswers: null, typing: null, finalReveal: false, 
+            isGameSet: false, forceOpen: null, // ここでリザルトと強制公開をリセット
+            currentQuiz: currentQuiz, revealed: []
+        }); 
         db.ref('waits').once('value', snap => {
-            const waits = snap.val() || {};
-            const newWaits = {};
+            const waits = snap.val() || {}; const newWaits = {};
             Object.keys(waits).forEach(k => { if(waits[k] > 0) newWaits[k] = waits[k] - 1; });
             db.ref('waits').set(newWaits);
         });
-        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, isGameSet: false, forceOpen: null }); 
-        if(subWindow) subWindow.resetForNext(); 
-        sync(true); renderList();
+        renderList();
     }
     
-    function startQuiz() { db.ref('status').set('active'); const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); sync(); } else clearInterval(timer); }, speed); }
-    function sync(forceHideSub = false) { const h = Array.from(currentQuiz.q).map((c, i) => revealed.includes(i) ? `<span>${hEsc(c)}</span>` : `<span class="hidden">${hEsc(c)}</span>`).join(''); document.getElementById('display').innerHTML = h; if(subWindow && !forceHideSub) subWindow.document.getElementById('text').innerHTML = h; }
-    
+    function startQuiz() { 
+        db.ref('status').set('active'); 
+        const speed = parseInt(document.getElementById('readSpeed').value); clearInterval(timer); 
+        timer = setInterval(() => { if(revealed.length < currentQuiz.q.length) { let n = 0; while(revealed.includes(n)) n++; revealed.push(n); db.ref('revealed').set(revealed); } else clearInterval(timer); }, speed); 
+    }
     function openType(t) {
         db.ref('status').set('active');
         const m = { kanji:/[\u4E00-\u9FFF]/, hira:/[\u3040-\u309F]/, kana:/[\u30A0-\u30FF]/, num:/[0-9０-９]/, alp:/[a-zA-Zａ-ｚＡ-Ｚ]/, sym:/[ ！・？、。：；／＿－＝＋＊＆％＄＃＠！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［＼］＾＿｀｛｜｝～「」『』【】（）ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ★☆]/ };
         let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if (m[t] && m[t].test(c) && !revealed.includes(i)) { revealed.push(i); count++; } });
-        if (count > 0) { requestSound('type'); sync(); }
+        if (count > 0) { requestSound('type'); db.ref('revealed').set(revealed); }
     }
-    function openCircleOnly() { let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) { revealed.push(i); count++; } }); if(count > 0) { requestSound('type'); sync(); } }
-    function openAll() { revealed = Array.from(currentQuiz.q).map((_, i) => i); sync(); }
-
+    function openCircleOnly() { let count = 0; Array.from(currentQuiz.q).forEach((c, i) => { if ((c === '〇' || c === '○') && !revealed.includes(i)) { revealed.push(i); count++; } }); if(count > 0) { requestSound('type'); db.ref('revealed').set(revealed); } }
+    function openAll() { revealed = Array.from(currentQuiz.q).map((_, i) => i); db.ref('revealed').set(revealed); }
     function toggleBoardOpen(name) { db.ref('forceOpen/' + safeName(name)).transaction(v => !v); }
     function manualInput() { const q = prompt("問題文を入力:", currentQuiz.q); const a = prompt("正解を入力:", currentQuiz.a); if(q !== null && a !== null) applyQuiz(q, a); }
-
     function judge(isOK, targetPlayer = null) {
         requestSound(isOK ? 'correct' : 'wrong');
         db.ref().once('value', snap => {
@@ -276,11 +275,11 @@
             if(d.mode !== 'all_board' && !targetPlayer) { db.ref().update({ winner: "", status: "active" }); }
         });
     }
-
     function resumeQuiz() { db.ref('status').set('active'); if(revealed.length < currentQuiz.q.length) startQuiz(); }
-    function revealAnswer() { db.ref('finalReveal').set(true); if(subWindow) subWindow.reveal(currentQuiz.a, currentQuiz.q); }
-    function resetAll() { if (confirm("すべて消去しますか？")) { db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [] }); historyList = []; renderHistory(); } }
+    function revealAnswer() { db.ref('finalReveal').set(true); }
+    function resetAll() { if (confirm("すべて消去しますか？")) { db.ref().set({ status: "idle", mode: "push", rankVisible: true, isGameSet: false, usedSet: [], history: [] }); historyList = []; renderHistory(); } }
 
+    let isPlayerLocked = false;
     function lockName() { const n = document.getElementById('p-name').value.trim(); if(!n) return alert("名前！"); isPlayerLocked = true; document.getElementById('p-name').disabled = true; document.getElementById('p-lock-btn').style.display = 'none'; document.getElementById('locked-name-display').style.display = 'block'; document.getElementById('current-player-name').innerText = n; }
     function initPlayer() { 
         const bUI = document.getElementById('board-input-ui'), sArea = document.getElementById('player-status-area'); 
@@ -301,77 +300,70 @@
 
     function openSubWindow() {
         subWindow = window.open("", "QuizSub", "width=1200,height=800");
-        subWindow.document.write(`<html><head><style>
-            body{background:#000;color:#fff;font-family:sans-serif;margin:0;overflow:hidden;display:flex;}
-            #main-container{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;transition: width 0.3s;}
-            #rank-side{width:280px;background:#111;border-left:3px solid #333;padding:20px;transition: transform 0.3s, width 0.3s;}
-            #rank-side.hidden{transform: translateX(100%); width:0; padding:0; border:none;}
-            #text{font-size:3.5rem;text-align:center;font-weight:bold;line-height:1.3;white-space:pre-wrap;width:100%;}
-            #text span.hidden{visibility:hidden;}
-            #ans{display:none;font-size:4.5rem;color:#f1c40f;border:10px solid #f1c40f;padding:20px;margin-top:25px;border-radius:20px;font-weight:bold;}
-            #board-area{display:flex;flex-wrap:wrap;justify-content:center;margin-top:25px;gap:20px;width:100%;}
-            .board-box { background:#222; padding:25px; border-radius:15px; min-width:220px; text-align:center; border:5px solid #555;}
-            .board-box.correct { border-color: #2ecc71; background: #041; }
-            .board-box.wrong { border-color: #e74c3c; background: #400; }
-            #result-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); z-index:100; flex-direction:row; padding:40px; box-sizing:border-box;}
-            .res-col { flex:1; display:flex; flex-direction:column; align-items:center; }
-            .hist-col { flex:1.5; background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; overflow-y:auto; max-height:90vh; border:1px solid #444; }
-            .result-item { font-size:2.2rem; margin:10px; font-weight:bold; }
-            .hist-item { border-bottom:1px solid #333; padding:10px 0; font-size:1.1rem; width:100%; }
-            .hist-q { color:#ccc; margin-bottom:4px; font-size:0.9rem; }
-            .hist-a { color:#f1c40f; font-weight:bold; font-size:1.2rem; }
-            @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        </style></head><body>
-            <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
-            <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
-            <div id="result-overlay">
-                <div class="res-col">
-                    <h1 style="color:#f1c40f; font-size:3rem;">🏆 FINAL RANKING 🏆</h1>
-                    <div id="result-list" style="width:100%; text-align:center;"></div>
-                </div>
-                <div class="hist-col">
-                    <h2 style="border-bottom:2px solid #f1c40f; padding-bottom:10px;">📜 QUIZ HISTORY</h2>
-                    <div id="history-list-view"></div>
-                </div>
-            </div>
-            <script>
-                const sounds = { push: new Audio('sounds/push.mp3'), correct: new Audio('sounds/correct.mp3'), wrong: new Audio('sounds/wrong.mp3'), type: new Audio('sounds/type.mp3') };
-                const safeName = (n) => n.replace(/[.#$/[\\\]]/g, \"_\");
-                window.play = (s) => { if(sounds[s]) { sounds[s].currentTime = 0; sounds[s].play().catch(e => 0); } };
-                window.reveal = (a,q) => { document.getElementById('ans').innerText=a; document.getElementById('ans').style.display='block'; document.getElementById('text').innerHTML=q; };
-                window.toggleRank = (v) => { 
-                    const rs = document.getElementById('rank-side');
-                    if(v) rs.classList.remove('hidden'); else rs.classList.add('hidden');
-                };
-                window.updateRank = (list) => { document.getElementById('rank-list').innerHTML = list.map(([n,v]) => '<div style=\"display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;\"><span>'+n+'</span><span>'+v+'pt</span></div>').join(''); };
-                window.showResult = (scoreList, history) => { 
-                    const over = document.getElementById('result-overlay');
-                    over.style.display = 'flex';
-                    document.getElementById('result-list').innerHTML = scoreList.map(([n,v], i) => '<div class=\"result-item\" style=\"color:'+(i===0?'#f1c40f':'#fff')+'\">' + (i+1) + '位: ' + n + ' (' + v + 'pt)</div>').join('');
-                    document.getElementById('history-list-view').innerHTML = history.map((h, i) => \`
-                        <div class=\"hist-item\">
-                            <div class=\"hist-q\">Q\${i+1}: \${h.q}</div>
-                            <div class=\"hist-a\">A: \${h.a}</div>
-                        </div>
-                    \`).reverse().join('');
-                };
-                window.hideResult = () => { document.getElementById('result-overlay').style.display = 'none'; };
-                window.syncBoard = (d) => {
-                    const area = document.getElementById('board-area');
-                    const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
-                    area.innerHTML = players.map(n => {
-                        const sn = safeName(n);
-                        const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
-                        const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn], isForceOpen = d.forceOpen?.[sn];
-                        // 正解/不正解に関わらず、手動オープン(isForceOpen)か最終答え公開(finalReveal)の時のみ中身を表示
-                        const show = d.finalReveal || isForceOpen;
-                        let content = show ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
-                        if(!content && !isTyping) return \"\";
-                        return '<div class=\"board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'\"><small>'+n+'</small><div style=\"font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;\">'+content+'</div></div>';
-                    }).join('');
-                };
-                window.resetForNext = () => { document.getElementById('ans').style.display='none'; document.getElementById('board-area').innerHTML=''; document.getElementById('text').innerHTML=''; };
-            <\/script></body></html>`);
+        if (subWindow.location.href === "about:blank") {
+            subWindow.document.write(`<html><head><title>Quiz Viewer</title>
+            <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"><\/script>
+            <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"><\/script>
+            <style>
+                body{background:#000;color:#fff;font-family:sans-serif;margin:0;overflow:hidden;display:flex;}
+                #main-container{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;transition: width 0.3s;}
+                #rank-side{width:280px;background:#111;border-left:3px solid #333;padding:20px;transition: transform 0.3s, width 0.3s;}
+                #rank-side.hidden{transform: translateX(100%); width:0; padding:0; border:none;}
+                #text{font-size:3.5rem;text-align:center;font-weight:bold;line-height:1.3;white-space:pre-wrap;width:100%;}
+                #text span.hidden{visibility:hidden;}
+                #text span { border-bottom: 3px solid #333; margin-right: 4px; min-width: 0.8em; display: inline-block; }
+                #ans{display:none;font-size:4.5rem;color:#f1c40f;border:10px solid #f1c40f;padding:20px;margin-top:25px;border-radius:20px;font-weight:bold;}
+                #board-area{display:flex;flex-wrap:wrap;justify-content:center;margin-top:25px;gap:20px;width:100%;}
+                .board-box { background:#222; padding:25px; border-radius:15px; min-width:220px; text-align:center; border:5px solid #555;}
+                .board-box.correct { border-color: #2ecc71; background: #041; }
+                .board-box.wrong { border-color: #e74c3c; background: #400; }
+                #result-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); z-index:100; flex-direction:row; padding:40px; box-sizing:border-box;}
+                .res-col { flex:1; display:flex; flex-direction:column; align-items:center; }
+                .hist-col { flex:1.5; background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; overflow-y:auto; max-height:90vh; border:1px solid #444; }
+                .result-item { font-size:2.2rem; margin:10px; font-weight:bold; }
+                .hist-item { border-bottom:1px solid #333; padding:10px 0; font-size:1.1rem; width:100%; }
+                .hist-q { color:#ccc; margin-bottom:4px; font-size:0.9rem; }
+                .hist-a { color:#f1c40f; font-weight:bold; font-size:1.2rem; }
+                @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+            </style></head><body>
+                <div id="main-container"><div id="text"></div><div id="ans"></div><div id="board-area"></div></div>
+                <div id="rank-side"><h2>RANKING</h2><div id="rank-list"></div></div>
+                <div id="result-overlay"><div class="res-col"><h1 style="color:#f1c40f; font-size:3rem;">🏆 FINAL RANKING 🏆</h1><div id="result-list"></div></div><div class="hist-col"><h2>📜 QUIZ HISTORY</h2><div id="history-list-view"></div></div></div>
+                <script>
+                    const config = { databaseURL: "https://realtime-database-c0015-default-rtdb.firebaseio.com/" };
+                    firebase.initializeApp(config);
+                    const vdb = firebase.database();
+                    const sounds = { push: new Audio('sounds/push.mp3'), correct: new Audio('sounds/correct.mp3'), wrong: new Audio('sounds/wrong.mp3'), type: new Audio('sounds/type.mp3') };
+                    const hEsc = (s) => { const e = document.createElement('div'); e.textContent = s; return e.innerHTML; };
+                    vdb.ref('soundRequest').on('value', snap => { const s = snap.val(); if(!s) return; const audio = sounds[s.type]; if(audio) { audio.currentTime = 0; audio.play().catch(e=>0); } });
+                    vdb.ref().on('value', snap => {
+                        const d = snap.val() || {}; const q = d.currentQuiz || {q:"", a:""}; const rev = d.revealed || [];
+                        const textDiv = document.getElementById('text'); const ansDiv = document.getElementById('ans');
+                        textDiv.innerHTML = Array.from(q.q).map((c, i) => rev.includes(i) ? \`<span>\${hEsc(c)}</span>\` : \`<span class="hidden">\${hEsc(c)}</span>\`).join('');
+                        if(d.finalReveal) { ansDiv.innerText = q.a; ansDiv.style.display = 'block'; textDiv.innerHTML = hEsc(q.q); } else { ansDiv.style.display = 'none'; }
+                        const bArea = document.getElementById('board-area');
+                        const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
+                        bArea.innerHTML = players.map(n => {
+                            const sn = n.replace(/[.#$/[\\\]]/g, "_"); const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
+                            const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn], isForceOpen = d.forceOpen?.[sn];
+                            const show = d.finalReveal || isForceOpen;
+                            let content = show ? (ans || "") : (ans ? "？？？" : (isTyping ? "<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>" : ""));
+                            if(!content && !isTyping) return "";
+                            return \`<div class="board-box \${isCorrect?'correct':(isWrong?'wrong':'')}"><small>\${n}</small><div style="font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;">\${content}</div></div>\`;
+                        }).join('');
+                        const rs = document.getElementById('rank-side'); if(d.rankVisible === false) rs.classList.add('hidden'); else rs.classList.remove('hidden');
+                        const scoreEntries = Object.entries(d.scores || {}).sort((a,b)=>b[1]-a[1]);
+                        document.getElementById('rank-list').innerHTML = scoreEntries.map(([n,v]) => \`<div style="display:flex;justify-content:space-between;font-size:1.6rem;padding:8px 0;border-bottom:1px solid #333;"><span>\${n}</span><span>\${v}pt</span></div>\`).join('');
+                        const over = document.getElementById('result-overlay');
+                        if(d.isGameSet) {
+                            over.style.display = 'flex';
+                            document.getElementById('result-list').innerHTML = scoreEntries.map(([n,v], i) => \`<div class="result-item" style="color:\${i===0?'#f1c40f':'#fff'}">\${i+1}位: \${n} (\${v}pt)</div>\`).join('');
+                            const hist = d.history || [];
+                            document.getElementById('history-list-view').innerHTML = hist.map((h, i) => \`<div class="hist-item"><div class="hist-q">Q\${i+1}: \${h.q}</div><div class="hist-a">A: \${h.a}</div></div>\`).reverse().join('');
+                        } else { over.style.display = 'none'; }
+                    });
+                <\/script></body></html>`);
+        }
     }
 </script>
 </body>
