@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>QuizConsole Pro - Ultimate V3.1</title>
+    <title>QuizConsole Pro - Individual Reveal</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0f1115; --primary: #4aa3ff; --danger: #ff5c5c; --success: #2ecc71; --dark: #000000; --test: #8e7dff; }
+        :root { --bg: #0f1115; --primary: #4aa3ff; --danger: #ff5c5c; --success: #2ecc71; --dark: #000000; --test: #8e7dff; --warning: #f1c40f; }
         body { font-family: sans-serif; background: var(--bg); color: #e5e7eb; margin: 0; padding: 10px; height: 100vh; overflow: hidden; box-sizing: border-box; }
         .page-section { display: none; height: 100%; } 
         #role-ui { display: block; }
@@ -27,6 +27,8 @@
         .board-mgr-item { padding: 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .board-mgr-item.is-correct { background: rgba(34, 197, 94, 0.2); border-left: 5px solid #22c55e; }
         .board-mgr-item.is-wrong { background: rgba(239, 68, 68, 0.2); border-left: 5px solid #ef4444; }
+        .btn-reveal { background: #6366f1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-reveal.active { background: #4338ca; border: 1px solid #fff; }
         #remote-button { width: 180px; height: 180px; border-radius: 50%; font-size: 2rem; font-weight: bold; cursor: pointer; border: 8px solid #333; }
         #remote-button:not(:disabled) { background: #7f1d1d; color: white; border-color: #991b1b; }
         .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: white; font-weight: bold; }
@@ -67,9 +69,15 @@
                         <button onclick="toggleRanking()">🏆 スコア表示切替</button>
                     </div>
                     <div id="activePlayer" style="font-size:2.2rem; font-weight:bold; color:var(--danger); min-height:1.2em;">待機中</div>
+                    
                     <div id="boardResults" style="display:none; text-align:left; background:#111827; padding:10px; border-radius:8px; margin:10px 0; max-height:250px; overflow-y:auto; border:2px solid #334155;">
+                        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px;">
+                            <span style="font-weight: bold; color: var(--success);">📝 ボード回答状況</span>
+                            <button onclick="db.ref('boardRevealAll').set(true)" style="background:#444; color:white; border:none; padding:3px 10px; border-radius:4px; font-size:0.7rem; cursor:pointer;">全員一斉公開</button>
+                        </div>
                         <div id="board-list-inner"></div>
                     </div>
+
                     <div style="display:flex; gap:10px; margin-top:10px;">
                         <button class="btn-ok" style="flex:1; height:70px; font-size:2.5rem;" onclick="judge(true)">⭕</button>
                         <button class="btn-ng" style="flex:1; height:70px; font-size:2.5rem;" onclick="judge(false)">❌</button>
@@ -108,7 +116,7 @@
                 <div id="quiz-list-area" style="flex:1;"></div>
             </div>
             <div class="sidebar-section" style="flex:1">
-                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴 (Clickで再表示)</h3>
+                <h3 style="margin:0 0 5px 0; font-size:0.9rem; color:var(--success);">📜 出題履歴</h3>
                 <div id="history-list" style="flex:1;"></div>
             </div>
         </div>
@@ -130,7 +138,6 @@
 </div>
 
 <script>
-    // 既存のFirebase設定を維持
     const firebaseConfig = { databaseURL: "https://realtime-database-c0015-default-rtdb.firebaseio.com/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -184,16 +191,26 @@
             document.getElementById('activePlayer').innerText = d.winner ? "🎤 " + d.winner : (d.mode === 'all_board' && d.status !== 'waiting' ? "🖊 全員解答中" : "待機中");
             if(d.status === "pushed" && lastStatus !== "pushed") { clearInterval(timer); requestSound('push'); }
             lastStatus = d.status;
+            
             const bArea = document.getElementById('boardResults');
             if((d.mode === 'board' || d.mode === 'all_board') && d.boardAnswers) {
                 bArea.style.display = 'block';
                 document.getElementById('board-list-inner').innerHTML = Object.entries(d.boardAnswers).map(([n, ans]) => {
                     const sn = safeName(n);
                     const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn];
+                    const isRevealed = d.revealedBoards?.[sn];
                     let cls = "board-mgr-item" + (isCorrect ? " is-correct" : (isWrong ? " is-wrong" : ""));
-                    return `<div class="${cls}"><span><b>${hEsc(n)}</b>: ${hEsc(ans)}</span><div style="display:flex; gap:5px;"><button class="btn-ok" style="padding:5px 12px;" onclick="judge(true, '${n}')">〇</button><button class="btn-ng" style="padding:5px 12px;" onclick="judge(false, '${n}')">×</button></div></div>`;
+                    return `<div class="${cls}">
+                        <div style="flex:1;"><b>${hEsc(n)}</b>: ${hEsc(ans)}</div>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <button class="btn-reveal ${isRevealed?'active':''}" onclick="db.ref('revealedBoards/${sn}').set(true)">👁️ 公開</button>
+                            <button class="btn-ok" style="padding:5px 12px;" onclick="judge(true, '${n}')">⭕</button>
+                            <button class="btn-ng" style="padding:5px 12px;" onclick="judge(false, '${n}')">❌</button>
+                        </div>
+                    </div>`;
                 }).join('');
             } else bArea.style.display = 'none';
+
             if(subWindow) { 
                 subWindow.syncBoard(d); 
                 subWindow.toggleRank(d.rankVisible !== false); 
@@ -217,7 +234,6 @@
         let list = masterData[activeGenre] || [];
         if(s) list = list.filter(i => i.q.toLowerCase().includes(s) || i.a.toLowerCase().includes(s));
         else list = shuffleArray([...list]).slice(0, 50);
-        // 修正点: usedSet.has による opacity:0.4 指定を削除しました
         area.innerHTML = list.map(i => `<div class="mgr-item" onclick="applyQuiz('${hEsc(i.q.replace(/'/g,"\\'"))}', '${hEsc(i.a.replace(/'/g,"\\'"))}')" style="cursor:pointer; border-bottom:1px solid #222;"><strong>${hEsc(i.a)}</strong><small style="color:#888;">${hEsc(i.q)}</small></div>`).join('');
     }
 
@@ -238,7 +254,7 @@
             Object.keys(waits).forEach(k => { if(waits[k] > 0) newWaits[k] = waits[k] - 1; });
             db.ref('waits').set(newWaits);
         });
-        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, isGameSet: false }); 
+        db.ref().update({ status: "waiting", winner: "", correctList: null, wrongList: null, boardAnswers: null, typing: null, finalReveal: false, boardRevealAll: false, revealedBoards: null, isGameSet: false }); 
         if(subWindow) subWindow.resetForNext(); 
         sync(true); renderList();
     }
@@ -346,6 +362,7 @@
                     \`).reverse().join('');
                 };
                 window.hideResult = () => { document.getElementById('result-overlay').style.display = 'none'; };
+                
                 window.syncBoard = (d) => {
                     const area = document.getElementById('board-area');
                     const players = Array.from(new Set([...Object.keys(d.boardAnswers || {}), ...Object.keys(d.typing || {})]));
@@ -353,8 +370,10 @@
                         const sn = safeName(n);
                         const ans = d.boardAnswers?.[n]; const isTyping = d.typing?.[n];
                         const isCorrect = d.correctList?.[sn], isWrong = d.wrongList?.[sn];
-                        const show = d.finalReveal || isWrong;
-                        let content = show ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
+                        // 個別公開フラグ または 全体公開フラグ または 正解公開フラグ
+                        const isRevealed = d.revealedBoards?.[sn] || d.boardRevealAll || d.finalReveal;
+                        
+                        let content = isRevealed ? (ans || \"\") : (ans ? \"？？？\" : (isTyping ? \"<span style='color:#3498db;animation:blink 1s infinite'>🖊 入力中...</span>\" : \"\"));
                         if(!content && !isTyping) return \"\";
                         return '<div class=\"board-box '+(isCorrect?'correct':(isWrong?'wrong':''))+'\"><small>'+n+'</small><div style=\"font-size:2.2rem;font-weight:bold;color:#f1c40f;min-height:1.2em;\">'+content+'</div></div>';
                     }).join('');
